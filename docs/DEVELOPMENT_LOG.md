@@ -1,5 +1,15 @@
 # Development Log
 
+## 2026-11-19 - Milestone 4A Logistic Regression backend
+
+- Added a stateless `POST /api/v1/experiments/logistic-regression` endpoint with discriminated inline and seeded synthetic dataset schemas, bounded parameters, thresholded predictions, metrics, response consistency checks, and the shared structured error envelope.
+- Implemented the univariate NumPy engine `z = coefficient*x + intercept` with a sign-stable sigmoid, logits-based BCE (`logaddexp(0,z) - y*z`), simultaneous full-batch updates, seeded uniform/Bernoulli synthetic data, and finiteness checks. Probabilistic synthetic output containing only one class returns `SINGLE_CLASS_DATASET`; inline single-class datasets remain valid and zero-denominator metrics are defined as `0.0`.
+- Adversarial review found raw `np.mean` could overflow while summing large finite loss/gradient terms even when their mean was representable. Added a scaled finite-mean helper and regression coverage so the engine proceeds to the actual failing operation rather than reporting premature divergence. BCE now carries the current update step into its finite-value errors.
+- The one-feature service/API is a staged backend slice. The PRD and architecture retain the planned two-feature Logistic Regression learner experience and identify the required future extension. Parameter history is not returned; a future learning animation must receive explicit parameter snapshots instead of inferring them from loss history. The default regularized scikit-learn classifier is not an exact reference for this unregularized explicit gradient descent.
+- Backend tests: `backend/.venv/Scripts/python.exe -m pytest -q` passed, **66 passed**, with one existing Starlette deprecation warning: `Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.` Logistic Regression tests cover an independently calculated nontrivial one-step fixture, simultaneous updates, `steps: 0`, exact threshold behavior and post-training threshold independence, all confusion outcomes, seeded data range/repeatability, single-class outcomes, and finite aggregation under extreme values.
+- Frontend regression checks: `npm test` passed (7 files, 44 tests); `npm run build` passed with Node.js 25.2.0. Vite emitted its existing warning for the 1,160.44 kB minified deferred Plotly chunk. No frontend application code changed.
+- `git diff --check` passed. No live browser flow or performance benchmark was run; the Linear Regression learner UI remains unchanged.
+
 ## 2026-11-19 - Milestone 3 code review fixes
 
 - Invalid form submissions now clear a prior successful result so stale metrics and charts are not shown alongside validation errors. The result seed badge is shown only for synthetic dataset results.

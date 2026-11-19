@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from app.api.router import api_router
 from app.middleware import RequestBodyLimitMiddleware
 from app.ml.linear_regression import DatasetValueOutOfRangeError, NumericalDivergenceError
+from app.ml.logistic_regression import LogisticNumericalDivergenceError, SingleClassSyntheticDatasetError
 
 LOCAL_CORS_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 
@@ -94,6 +95,32 @@ def create_app() -> FastAPI:
                         "actual": exc.actual,
                         "max_abs": exc.maximum,
                     },
+                }
+            },
+        )
+
+    @application.exception_handler(LogisticNumericalDivergenceError)
+    async def logistic_divergence_error_handler(request: Request, exc: LogisticNumericalDivergenceError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "NUMERICAL_DIVERGENCE",
+                    "message": "Logistic Regression produced a non-finite intermediate value.",
+                    "details": {"step": exc.step, "value": exc.value},
+                }
+            },
+        )
+
+    @application.exception_handler(SingleClassSyntheticDatasetError)
+    async def single_class_dataset_error_handler(request: Request, exc: SingleClassSyntheticDatasetError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "SINGLE_CLASS_DATASET",
+                    "message": "Seeded synthetic data produced only one class; change the seed or generator settings and try again.",
+                    "details": {"class_label": exc.class_label, "n_samples": exc.n_samples},
                 }
             },
         )
