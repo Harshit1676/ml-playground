@@ -1,5 +1,13 @@
 # Development Log
 
+# 2026-11-19 — Milestone 1 scaffold
+
+- Added the React/Vite/TypeScript frontend with Tailwind CSS v4's Vite plugin, a responsive landing page, typed health API client, retryable connection state, and Vitest/React Testing Library tests. Plotly is not installed.
+- Added a FastAPI app with an isolated `/api/v1/health` router, Pydantic response model, Vite-local CORS allowlist, bounded dependency ranges, and pytest route/CORS tests.
+- Added `frontend/.env.example` for the public `VITE_API_BASE_URL` setting and PowerShell setup/run/test instructions in the README.
+- Verification: `npm test` passed (2 files, 6 tests); `npm run build` passed (TypeScript check plus Vite production build); `backend/.venv/Scripts/python.exe -m pytest` passed (2 tests); live Uvicorn `GET /api/v1/health` returned `{"status":"ok"}`. The pytest CORS preflight assertion also passed.
+- Environment notes: Node 25.2.0 emitted EBADENGINE warnings because the current Vitest/jsdom package ranges target supported LTS releases; tests and build nevertheless passed. Backend pytest emitted a Starlette deprecation warning about using HTTPX with TestClient; tests passed. Use a supported Node LTS release for routine development.
+
 ## 2026-11-19 — Repository planning baseline
 
 - Inspected the initialized repository on `main`; it had no application source files and contained an existing `.vscode/extensions.json` user file.
