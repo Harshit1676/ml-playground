@@ -192,6 +192,7 @@ export function LinearRegressionExperience() {
     setFieldErrors(built.errors)
     setErrorView(null)
     if (!built.request) {
+      setCompletedRun(null)
       setRunState('error')
       setErrorView({
         title: 'A few settings need attention',
@@ -323,7 +324,9 @@ export function LinearRegressionExperience() {
                   <p>These values and charts come from the response to this exact experiment.</p>
                   <p className="result-context">Edit a setting and run again to refresh this result.</p>
                 </div>
-                <span className="result-seed">Seed {values.seed}</span>
+                {completedRun.request.dataset.kind === 'synthetic_linear' && (
+                  <span className="result-seed">Seed {values.seed}</span>
+                )}
               </section>
 
               <div className="metric-grid" aria-label="Final model results">

@@ -9,13 +9,15 @@ afterEach(() => {
 })
 
 function responseFor(request: LinearRegressionRequest = DEFAULT_REQUEST): LinearRegressionResponse {
+  const x = request.dataset.kind === 'points' ? [...request.dataset.x] : [-1, 0, 1]
+  const y = request.dataset.kind === 'points' ? [...request.dataset.y] : [-1, 1, 3]
   return {
     algorithm: 'linear_regression',
     seed: request.seed,
-    dataset: { x: [-1, 0, 1], y: [-1, 1, 3] },
+    dataset: { x, y },
     parameters: request.parameters,
     model: { slope: 0.4, intercept: 0.6 },
-    predictions: { y_hat: [0.2, 0.6, 1] },
+    predictions: { y_hat: x.map((feature) => 0.4 * feature + 0.6) },
     metrics: { mse: 2.4 },
     training: { steps_completed: request.parameters.steps, loss_history: Array.from({ length: request.parameters.steps + 1 }, (_, index) => 4 - index * 0.01) },
   }
@@ -103,5 +105,18 @@ describe('runLinearRegression', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => response }))
 
     await expect(runLinearRegression(DEFAULT_REQUEST)).resolves.toEqual(response)
+  })
+
+  it('rejects inline dataset observations that differ from the submitted points', async () => {
+    const request: LinearRegressionRequest = {
+      ...DEFAULT_REQUEST,
+      dataset: { kind: 'points', x: [-1, 0, 1], y: [-1, 1, 3] },
+    }
+    const response = responseFor(request)
+    response.dataset.x[0] = -0.5
+    response.predictions.y_hat = response.dataset.x.map((feature) => 0.4 * feature + 0.6)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => response }))
+
+    await expect(runLinearRegression(request)).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
   })
 })

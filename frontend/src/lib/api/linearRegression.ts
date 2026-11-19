@@ -85,7 +85,18 @@ function isLinearRegressionResponse(value: unknown, request: LinearRegressionReq
     return false
   }
 
-  return losses.every((loss) => loss >= 0) && predictionsMatchModel(x, predictions, slope, intercept)
+  if (!losses.every((loss) => loss >= 0)) return false
+  const inlineDataset = request.dataset.kind === 'points' ? request.dataset : undefined
+  if (inlineDataset) {
+    if (
+      x.length !== inlineDataset.x.length || y.length !== inlineDataset.y.length ||
+      !x.every((value, index) => value === inlineDataset.x[index]) ||
+      !y.every((value, index) => value === inlineDataset.y[index])
+    ) {
+      return false
+    }
+  }
+  return predictionsMatchModel(x, predictions, slope, intercept)
 }
 
 function parseStructuredError(value: unknown): StructuredApiError | undefined {

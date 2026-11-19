@@ -125,6 +125,48 @@ describe('LinearRegressionExperience', () => {
     expect(screen.getByTestId('loss-chart').textContent).toContain('"x":[0,1,2,3')
   })
 
+  it('shows a seed badge for synthetic results but not inline observations', async () => {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+      const request = JSON.parse(String(init.body)) as LinearRegressionRequest
+      return Promise.resolve(jsonResponse(responseFor(request)))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<LinearRegressionExperience />)
+
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+    expect(await screen.findByText('Seed 42')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Dataset type'), 'points')
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+
+    expect(await screen.findByRole('heading', { name: 'The model learned a line' })).toBeInTheDocument()
+    expect(screen.queryByText('Seed 42')).not.toBeInTheDocument()
+  })
+
+  it('clears previous metrics and charts after an invalid submission', async () => {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+      const request = JSON.parse(String(init.body)) as LinearRegressionRequest
+      return Promise.resolve(jsonResponse(responseFor(request)))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<LinearRegressionExperience />)
+
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+    expect(await screen.findByRole('heading', { name: 'The model learned a line' })).toBeInTheDocument()
+    expect(screen.getByTestId('regression-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('loss-chart')).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('Initial slope'))
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('FORM_VALIDATION')
+    expect(screen.queryByText('Final MSE')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('regression-chart')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('loss-chart')).not.toBeInTheDocument()
+  })
+
   it('displays structured API validation errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
       error: { code: 'VALIDATION_ERROR', message: 'Request validation failed.', details: { fields: [{ field: 'dataset.x', reason: 'The x and y arrays must match.' }] } },

@@ -1,5 +1,11 @@
 # Development Log
 
+## 2026-11-19 - Milestone 3 code review fixes
+
+- Invalid form submissions now clear a prior successful result so stale metrics and charts are not shown alongside validation errors. The result seed badge is shown only for synthetic dataset results.
+- The frontend response validator now checks that the backend echoes inline `x` and `y` observations from the submitted request, in addition to validating response dimensions and model predictions. This matches the current stateless backend service, which passes submitted inline arrays through unchanged.
+- Verification: frontend `npm test` passed (7 files, 44 tests); `npm run build` passed with the existing Vite warning for the 1,160.44 kB minified deferred Plotly chunk; backend pytest passed (41 tests, one existing Starlette/HTTPX deprecation warning); `git diff --check` passed.
+
 ## 2026-11-19 - Milestone 3 interactive Linear Regression frontend
 
 - Replaced the health-only landing experience with a responsive Linear Regression lab while retaining the backend health status and retry control. Added seeded synthetic and inline point datasets, dataset and training controls, field-level validation, and a reset action.
