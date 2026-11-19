@@ -8,26 +8,24 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('ML Playground landing page', () => {
-  it('shows a loading state before the health check completes', () => {
+describe('ML Playground application shell', () => {
+  it('shows backend loading while rendering the Linear Regression lab', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<App />)
 
-    expect(screen.getByRole('status')).toHaveTextContent('Checking backend connection')
+    expect(screen.getByRole('status')).toHaveTextContent('Checking backend')
+    expect(screen.getByRole('heading', { name: 'Linear Regression Lab' })).toBeInTheDocument()
   })
 
-  it('shows connected when the backend health check succeeds', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ status: 'ok' }),
-    }))
+  it('shows connected when the health endpoint succeeds', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'ok' }) }))
     render(<App />)
 
     expect(await screen.findByText('Backend connected')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Make machine learning make sense.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Linear Regression Lab' })).toBeInTheDocument()
   })
 
-  it('shows failure and retries after a failed request', async () => {
+  it('shows backend failure and retries the health check', async () => {
     const fetchMock = vi.fn()
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'ok' }) })
@@ -36,7 +34,7 @@ describe('ML Playground landing page', () => {
     render(<App />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Backend unavailable')
-    await user.click(screen.getByRole('button', { name: /try again/i }))
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('Backend connected')).toBeInTheDocument()
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
   })

@@ -13,8 +13,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "plotly.js-basic-dist-min": "^4.1.2",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-plotly.js": "^4.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
@@ -26,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.3.0",
     "jsdom": "^31.0.1",
+    "plotly.js-dist-min": "^4.3.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
