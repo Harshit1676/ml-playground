@@ -112,8 +112,9 @@ Response returns the algorithm, seed, normalized dataset used, effective paramet
 - `0 < learning_rate <= 1`; `0 <= steps <= 500`; `0 <= seed <= 2^32-1`.
 - Synthetic data requires 2-1,000 samples, finite generator settings, `0 <= noise_std <= 1e3`, `x_min < x_max`, and absolute slope/intercept/range values <= 1e6.
 - Request body <= 1 MiB. Validate in Pydantic and service before expensive work; reject instead of truncating.
-- Invalid schema or values return HTTP 422 with stable error code/message and optional field details. Body overflow returns 413. Non-finite computation results return a structured computation error, never JSON NaN/Infinity.
-- The bounds are initial limits. Feature scale can make a learning rate numerically unstable; detect non-finite results and decide during implementation whether to impose a scale-aware conservative bound or surface a clear error.
+- Invalid schema or values return HTTP 422 with stable error code/message and optional field details. Body overflow returns 413. Non-finite intermediate values return a structured numerical-divergence error, never JSON NaN/Infinity or a partial success.
+- Check predictions, residuals, gradients, candidate parameters, and loss for finiteness during every update, stopping at the first failing step. Return HTTP 422 with stable code `NUMERICAL_DIVERGENCE`, a safe message, and details such as step number and intermediate field name; do not include NaN/Infinity in the error payload.
+- The bounds are initial limits. Feature scale can make a learning rate numerically unstable; detect non-finite intermediates. Whether to add a preflight scale-aware learning-rate bound remains an implementation decision.
 
 The seed controls synthetic feature/noise generation through a local NumPy random generator and is echoed in the response. Identical generated request plus seed yields identical data and equivalent results within a documented floating-point tolerance. Inline data is inherently fixed; the seed remains in the uniform request/response contract.
 
@@ -150,7 +151,7 @@ Test UI state, parameter bounds/serialization, API client success and errors, st
 
 ### Backend: pytest
 
-Test Pydantic constraints and error envelopes, seeded dataset generation, algorithm known-answer cases, gradients/learning-step semantics, metrics, edge cases, and repeatability. Route/service tests cover valid requests, invalid dimensions, size/work limits, status codes, and response models. Compare to scikit-learn where appropriate with explicit tolerances.
+Test Pydantic constraints and error envelopes, seeded dataset generation, algorithm known-answer cases, gradients/learning-step semantics, metrics, edge cases, and repeatability. Include numerical-divergence tests with finite valid inputs that cause overflow/non-finite intermediate values; assert the first failing iteration is reported through the structured `NUMERICAL_DIVERGENCE` response, with no partial success or non-finite JSON. Also cover large finite intermediate values. Route/service tests cover valid requests, invalid dimensions, size/work limits, status codes, and response models. Compare to scikit-learn where appropriate with explicit tolerances.
 
 ### Integration
 

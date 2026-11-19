@@ -106,7 +106,9 @@ A successful response echoes the seed and effective parameters and returns the e
 - Require `0 < learning_rate <= 1`, `0 <= steps <= 500`, and `0 <= seed <= 2^32-1`.
 - For generated data require `2 <= n_samples <= 1000`, finite slope/intercept/noise/bounds, `0 <= noise_std <= 1e3`, `x_min < x_max`, and bounded generation parameters (absolute slope/intercept/bounds at most `1e6`).
 - Cap request body size at 1 MiB. Enforce limits through Pydantic and service checks; reject rather than silently truncate. Error responses use a stable code, message, and optional field details; invalid requests return HTTP 422 and oversized bodies HTTP 413.
-- A non-finite result or unstable update is an explicit computation error, not a successful response containing NaN/Infinity. Numerical stability and whether to add a conservative learning-rate bound based on input scale must be settled during implementation.
+- Check every training iteration's intermediate predictions, residuals, gradients, candidate parameters, and loss for finiteness before proceeding. A non-finite intermediate or unstable update is a numerical-divergence error, never a successful response containing NaN/Infinity or a partial result.
+- Return numerical divergence as a structured HTTP 422 error, for example `{"error":{"code":"NUMERICAL_DIVERGENCE","message":"Gradient descent produced a non-finite intermediate value.","details":{"step":12,"value":"gradient_slope"}}}`. Keep the code stable; details identify the step and intermediate field without including an invalid numeric payload.
+- Input-valid requests can still diverge because of feature scale and learning rate. Detect divergence at the iteration where it first occurs. Whether to additionally reject risky learning-rate/data-scale combinations before computation must be settled during implementation.
 
 For generated requests, the seed controls all random sampling/noise and is returned. Inline points are already deterministic; the seed is still echoed for a uniform contract. A repeated generated request with identical fields and seed returns the same dataset and equivalent model output within floating-point tolerance. No server session is required to continue training.
 
@@ -124,6 +126,7 @@ These are targets, not achieved results. Before claiming them, benchmark at leas
 ## 8. Mathematical acceptance and testing
 
 - Verify gradients and one-step updates against hand-calculated fixtures; verify `loss_history` length and MSE values.
+- Add explicit numerical-divergence tests that use finite, schema-valid inputs but cause a non-finite intermediate during gradient descent. Assert detection occurs at the first failing step, the API returns the structured `NUMERICAL_DIVERGENCE` error with step/field details, and no partial success response or NaN/Infinity is serialized. Also test that large but finite intermediates continue when they remain finite.
 - Compare converged fitted parameters/predictions to an appropriate scikit-learn reference with documented tolerance; scikit-learn is a reference, not the source for the explicit GD step trace.
 - Same seeded synthetic request is repeatable; invalid shapes, ranges, and non-finite inputs fail clearly.
 - Tests cover frontend state/API behavior (Vitest + React Testing Library), backend schemas/routes/engine (pytest), and frontend-to-API contracts.

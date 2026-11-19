@@ -1,0 +1,15 @@
+# Normalize detected text files to LF while leaving binary files unchanged.
+* text=auto eol=lf
+
+# Explicitly keep common source and documentation formats as LF text.
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.txt text eol=lf
