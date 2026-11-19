@@ -1,0 +1,54 @@
+# Frontend dependencies and generated output
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/coverage/
+frontend/.vite/
+dist/
+build/
+coverage/
+
+# Python bytecode and test/tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.eggs/
+*.egg-info/
+__pypackages__/
+.coverage
+coverage.xml
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+backend/venv/
+
+# Secret material
+secrets/
+*.secret
+*.credentials
+
+# Environment files and secrets (allow a safe template)
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Editor settings
+.vscode/
+
+# Logs and local caches
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.turbo/
