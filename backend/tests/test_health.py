@@ -69,6 +69,46 @@ def test_health_rejects_unconfigured_production_origin(monkeypatch: pytest.Monke
     assert "access-control-allow-origin" not in response.headers
 
 
+def test_production_origin_allows_post_preflight_and_content_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(
+        monkeypatch,
+        environment="production",
+        origins="https://playground.example.com",
+    )
+    response = client.options(
+        "/api/v1/experiments/linear-regression",
+        headers={
+            "Origin": "https://playground.example.com",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://playground.example.com"
+    assert "POST" in response.headers["access-control-allow-methods"]
+    assert "content-type" in response.headers["access-control-allow-headers"].lower()
+
+
+def test_unlisted_production_origin_is_not_granted_post_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(
+        monkeypatch,
+        environment="production",
+        origins="https://playground.example.com",
+    )
+    response = client.options(
+        "/api/v1/experiments/linear-regression",
+        headers={
+            "Origin": "https://untrusted.example.net",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
+
+
 def test_production_requires_explicit_origins(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
