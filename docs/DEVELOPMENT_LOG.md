@@ -1,5 +1,12 @@
 # Development Log
 
+## 2026-11-19 — Milestone 2 review fixes
+
+- Clarified that the PRD's absolute `1e6` observation bound applies to generated `x` and `y` as well as inline values. Synthetic configurations that produce a finite out-of-range `y` now return structured HTTP 422 `DATASET_VALUE_OUT_OF_RANGE` with field, index, actual value, and maximum magnitude; values are not clipped/rescaled and `NUMERICAL_DIVERGENCE` remains reserved for non-finite arithmetic.
+- Expanded production CORS coverage for allowed HTTPS POST preflight, unlisted origins, and the `content-type` header. Updated the README to reflect that POST is already enabled.
+- Added tests for valid magnitude boundaries, synthetic generator parameter boundaries, exact 1 MiB bodies, oversized chunked bodies without Content-Length, malformed JSON error envelopes, and finite successful JSON responses.
+- Verification: backend pytest passed (41 tests); frontend `npm test` passed (6 tests); frontend `npm run build` passed; `git diff --check` passed. The new tests verify maximum-magnitude values are accepted, a generated finite target above `1e6` returns `DATASET_VALUE_OUT_OF_RANGE`, production HTTPS POST preflight/CORS behavior, exact-limit and chunked oversized request handling, malformed JSON envelopes, and finite success serialization. The backend suite continues to emit the existing Starlette/HTTPX deprecation warning.
+
 ## 2026-11-19 — Milestone 2 Linear Regression backend engine
 
 - Added the first stateless `POST /api/v1/experiments/linear-regression` API using typed Pydantic request/response schemas, a thin route, a stateless orchestration service, and a FastAPI-independent NumPy engine.

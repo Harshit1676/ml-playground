@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.middleware import RequestBodyLimitMiddleware
-from app.ml.linear_regression import NumericalDivergenceError
+from app.ml.linear_regression import DatasetValueOutOfRangeError, NumericalDivergenceError
 
 LOCAL_CORS_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 
@@ -76,6 +76,24 @@ def create_app() -> FastAPI:
                     "code": "NUMERICAL_DIVERGENCE",
                     "message": "Gradient descent produced a non-finite intermediate value.",
                     "details": {"step": exc.step, "value": exc.value},
+                }
+            },
+        )
+
+    @application.exception_handler(DatasetValueOutOfRangeError)
+    async def dataset_value_out_of_range_handler(request: Request, exc: DatasetValueOutOfRangeError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "DATASET_VALUE_OUT_OF_RANGE",
+                    "message": "Generated dataset values must have absolute magnitude at most 1,000,000.",
+                    "details": {
+                        "field": f"dataset.{exc.field}",
+                        "index": exc.index,
+                        "actual": exc.actual,
+                        "max_abs": exc.maximum,
+                    },
                 }
             },
         )

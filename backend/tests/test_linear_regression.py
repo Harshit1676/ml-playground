@@ -154,6 +154,79 @@ def test_synthetic_dataset_constraints_are_validated() -> None:
     assert response.status_code == 422
 
 
+def test_inline_observations_at_magnitude_boundary_are_accepted() -> None:
+    body = points_request()
+    body["dataset"] = {"kind": "points", "x": [-1_000_000.0, 1_000_000.0], "y": [-1_000_000.0, 1_000_000.0]}
+    response = client.post("/api/v1/experiments/linear-regression", json=body)
+
+    assert response.status_code == 200
+    assert response.json()["dataset"]["x"] == [-1_000_000.0, 1_000_000.0]
+    assert response.json()["dataset"]["y"] == [-1_000_000.0, 1_000_000.0]
+
+
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        {"kind": "synthetic_linear", "n_samples": 2, "slope": 1_000_000.0, "intercept": -1_000_000.0, "noise_std": 0.0, "x_min": 0.0, "x_max": 1.0},
+        {"kind": "synthetic_linear", "n_samples": 1000, "slope": 0.0, "intercept": 0.0, "noise_std": 1000.0, "x_min": -1_000_000.0, "x_max": 1_000_000.0},
+    ],
+)
+def test_synthetic_parameter_boundaries_are_accepted_when_targets_fit(dataset: dict) -> None:
+    body = {
+        "dataset": dataset,
+        "parameters": {"initial_slope": 0.0, "initial_intercept": 0.0, "learning_rate": 0.1, "steps": 0},
+        "seed": 42,
+    }
+    response = client.post("/api/v1/experiments/linear-regression", json=body)
+
+    assert response.status_code == 200
+    assert len(response.json()["dataset"]["x"]) == dataset["n_samples"]
+
+
+def test_synthetic_target_at_magnitude_boundary_is_accepted() -> None:
+    body = {
+        "dataset": {"kind": "synthetic_linear", "n_samples": 2, "slope": 0.0, "intercept": 1_000_000.0, "noise_std": 0.0, "x_min": -1_000_000.0, "x_max": 1_000_000.0},
+        "parameters": {"initial_slope": 0.0, "initial_intercept": 0.0, "learning_rate": 0.1, "steps": 0},
+        "seed": 42,
+    }
+    response = client.post("/api/v1/experiments/linear-regression", json=body)
+
+    assert response.status_code == 200
+    assert response.json()["dataset"]["y"] == [1_000_000.0, 1_000_000.0]
+
+
+def test_generated_target_over_magnitude_boundary_is_structured_validation_error() -> None:
+    body = {
+        "dataset": {"kind": "synthetic_linear", "n_samples": 2, "slope": 1_000_000.0, "intercept": 0.0, "noise_std": 0.0, "x_min": 0.0, "x_max": 1_000_000.0},
+        "parameters": {"initial_slope": 0.0, "initial_intercept": 0.0, "learning_rate": 0.1, "steps": 0},
+        "seed": 42,
+    }
+    response = client.post("/api/v1/experiments/linear-regression", json=body)
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "DATASET_VALUE_OUT_OF_RANGE"
+    assert set(response.json()["error"]) == {"code", "message", "details"}
+    json.dumps(response.json(), allow_nan=False)
+    assert response.json()["error"]["details"]["field"] == "dataset.y"
+    assert response.json()["error"]["details"]["max_abs"] == 1_000_000.0
+    assert response.json()["error"]["details"]["actual"] > 1_000_000.0
+    assert "NUMERICAL_DIVERGENCE" not in response.text
+
+
+def test_exactly_one_mib_request_body_is_accepted() -> None:
+    body = json.dumps(points_request()).encode("utf-8")
+    body += b" " * (1024 * 1024 - len(body))
+    assert len(body) == 1024 * 1024
+
+    response = client.post(
+        "/api/v1/experiments/linear-regression",
+        content=body,
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 200
+
+
 def test_oversized_request_returns_structured_413() -> None:
     response = client.post(
         "/api/v1/experiments/linear-regression",
@@ -163,6 +236,39 @@ def test_oversized_request_returns_structured_413() -> None:
 
     assert response.status_code == 413
     assert response.json()["error"]["code"] == "REQUEST_TOO_LARGE"
+
+
+def test_chunked_oversized_request_is_rejected_without_content_length() -> None:
+    response = client.post(
+        "/api/v1/experiments/linear-regression",
+        content=iter([b" " * (1024 * 1024), b" "]),
+        headers={"content-type": "application/json"},
+    )
+
+    assert "content-length" not in response.request.headers
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "REQUEST_TOO_LARGE"
+
+
+def test_malformed_json_returns_structured_validation_error() -> None:
+    response = client.post(
+        "/api/v1/experiments/linear-regression",
+        content=b'{"dataset":',
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert response.json()["error"]["details"]["fields"]
+
+
+def test_successful_response_contains_no_nan_or_infinity() -> None:
+    response = client.post("/api/v1/experiments/linear-regression", json=points_request(steps=1))
+
+    assert response.status_code == 200
+    json.dumps(response.json(), allow_nan=False)
+    assert "nan" not in response.text.lower()
+    assert "infinity" not in response.text.lower()
 
 
 def test_numerical_divergence_identifies_first_failing_intermediate() -> None:

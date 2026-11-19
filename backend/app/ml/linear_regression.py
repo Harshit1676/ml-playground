@@ -27,6 +27,17 @@ class NumericalDivergenceError(Exception):
         self.value = value
 
 
+class DatasetValueOutOfRangeError(Exception):
+    """Raised when finite generated observations exceed the documented data bounds."""
+
+    def __init__(self, field: str, index: int, actual: float, maximum: float) -> None:
+        super().__init__(f"Generated {field}[{index}] exceeds the allowed magnitude.")
+        self.field = field
+        self.index = index
+        self.actual = actual
+        self.maximum = maximum
+
+
 def _require_finite(value: FloatArray | np.float64 | float, *, step: int, field: str) -> None:
     if not bool(np.all(np.isfinite(value))):
         raise NumericalDivergenceError(step, field)
@@ -111,4 +122,8 @@ def generate_synthetic_linear_dataset(
         y = np.float64(slope) * x + np.float64(intercept) + noise
     _require_finite(x, step=0, field="dataset_x")
     _require_finite(y, step=0, field="dataset_y")
+    out_of_range = np.flatnonzero(np.abs(y) > 1_000_000.0)
+    if out_of_range.size:
+        index = int(out_of_range[0])
+        raise DatasetValueOutOfRangeError("y", index, float(y[index]), 1_000_000.0)
     return x, y
