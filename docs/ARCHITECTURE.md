@@ -12,7 +12,7 @@ Frontend owns interaction, controls, visualization, and explanation presentation
 
 ## 2. Monorepo layout
 
-Planned structure; application code is not yet scaffolded.
+Current high-level layout; milestone-specific modules are added as they are delivered.
 
 ```text
 frontend/
@@ -28,7 +28,7 @@ frontend/
 backend/
   app/
     main.py             FastAPI app and middleware
-    api/v1/routes/      Thin HTTP endpoint handlers
+    api/routes/         Thin HTTP endpoint handlers, mounted below /api/v1
     schemas/            Pydantic request, response, and error schemas
     services/           Experiment orchestration and response assembly
     ml/                 Dataset generation, algorithms, metrics, steps
@@ -60,7 +60,7 @@ Keep algorithm functions importable without starting FastAPI. Keep Plotly detail
 ## 4. Dataset dimensions by algorithm
 
 - **Linear Regression V1:** one input feature `x` (scalar per observation) and one continuous target `y`. The chart plots `x` horizontally and `y` vertically. Do not describe this as a two-feature input dataset.
-- **Logistic Regression:** two numeric input features and a class label per observation.
+- **Logistic Regression learner experience:** two numeric input features and a class label per observation. Milestone 4A first adds a one-feature backend slice for independently verifiable binary training; the later UI/API milestone must extend it to two features before the planned decision-boundary experience is complete.
 - **KNN:** two numeric input features and a class label per observation.
 - **K-Means:** two numeric input features and no supplied labels; cluster assignment is a computed output.
 
@@ -120,7 +120,7 @@ The seed controls synthetic feature/noise generation through a local NumPy rando
 
 ## 6. Other API shape and stateless flow
 
-Use `/api/v1/experiments/{algorithm}` for remaining algorithm runs and explicit typed Pydantic variants. Logistic Regression/KNN schemas require two feature values and labels; K-Means requires two feature values and excludes input labels. Return normalized data, predictions/probabilities or cluster assignments/centroids, named metrics, seed/effective parameters, and bounded chart data needed to accurately render the result.
+Use `/api/v1/experiments/{algorithm}` for remaining algorithm runs and explicit typed Pydantic variants. The Milestone 4A Logistic Regression backend accepts one feature and binary labels; its later learner-facing contract and KNN schemas require two features and labels. K-Means requires two feature values and excludes input labels. Return normalized data, predictions/probabilities or cluster assignments/centroids, named metrics, seed/effective parameters, and bounded chart data needed to accurately render the result.
 
 ```text
 Controls + current UI snapshot
@@ -173,3 +173,11 @@ These are targets only. Before claiming an achieved target, benchmark at least 1
 Build the frontend as static assets with Vite for static hosting. Deploy FastAPI separately on a Python-capable service. This matches each runtime and keeps scientific computation out of the browser, with the tradeoff of two deployments, a configured API URL, CORS policy, and separate monitoring. Hosting provider, production origins, health checks, and environment variable names remain to be decided before deployment.
 
 Stateless synchronous calls simplify MVP operations and reproducibility. Strict input/work limits are required; large datasets and long-running training are outside this design. No database or job queue is needed for the bounded MVP experiments.
+
+## 11. Logistic Regression backend (Milestone 4A)
+
+`POST /api/v1/experiments/logistic-regression` is implemented as a thin route in `backend/app/api/routes/logistic_regression.py`, mounted under `/api/v1` by `backend/app/api/router.py`. Pydantic request and response models live in `backend/app/schemas/logistic_regression.py`; stateless dataset resolution and metrics assembly live in `backend/app/services/logistic_regression.py`; float64 calculations and seeded sampling are isolated in `backend/app/ml/logistic_regression.py`. The FastAPI app maps domain exceptions to the existing structured error envelope. The shared middleware enforces the 1 MiB request-body limit.
+
+The initial model is univariate: `z = coefficient*x + intercept`, `p = sigmoid(z)`. Batch gradients for mean binary cross-entropy are `mean((p-y)*x)` and `mean(p-y)`; both parameters update simultaneously from the same previous state. Sigmoid uses sign-aware stable branches and BCE uses `logaddexp(0,z)-y*z`. Every update checks logits, residuals, gradients, candidate parameters, probabilities, and losses for finiteness. Thresholding uses `p >= threshold`; confusion counts and accuracy, precision, recall, and F1 are assembled in the service. Zero-denominator metrics return zero. Inline single-class data is supported; if seeded Bernoulli generation yields only one class, the service returns structured `SINGLE_CLASS_DATASET` rather than silently regenerating data.
+
+The request supports inline `points` and seeded `synthetic_logistic` datasets, at most 1,000 observations, learning rate in `(0,1]`, 0–500 steps, threshold in `[0,1]`, bounded finite features/parameters, and a uint32 seed. Successful responses contain effective data, final parameters, probabilities/classes, metrics, and initial-plus-post-update BCE history. Parameter history is intentionally absent; a future animation must add explicit parameter snapshots instead of deriving them from loss history. This 1D backend slice does not satisfy the planned two-feature Logistic Regression learner experience by itself. The future two-feature extension should use `z = w1*x1 + w2*x2 + intercept`, retain the current binary objective and metric definitions, and return enough model/prediction data for its decision-boundary visualization; its exact schema remains open.

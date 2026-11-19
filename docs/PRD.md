@@ -28,6 +28,8 @@ Shared capabilities include reproducible datasets, bounded parameter controls, m
 
 Out of scope: AI chatbot/LLM, authentication, database or saved experiment history, Redis, Celery/task queues, arbitrary code execution, and algorithms beyond the four listed.
 
+**Milestone 4A staging note:** the first Logistic Regression backend slice intentionally implements a one-feature binary classifier (`x` plus label `y`) so its sigmoid, binary cross-entropy, gradient updates, and metrics can be verified independently. This is an implementation stage, not a change to the learner-facing two-feature MVP requirement above. The later Logistic Regression experience must extend the API and engine to two features before claiming the planned decision-boundary experience is complete. That extension will use a vector score `z = w1*x1 + w2*x2 + intercept`, preserve the binary loss/threshold/metric semantics, and provide response data sufficient to render the decision boundary; the future request/response field layout remains to be designed.
+
 ## 4. Core experience
 
 1. Learner chooses an algorithm, starting with Linear Regression.
@@ -112,7 +114,62 @@ A successful response echoes the seed and effective parameters and returns the e
 
 For generated requests, the seed controls all random sampling/noise and is returned. Inline points are already deterministic; the seed is still echoed for a uniform contract. A repeated generated request with identical fields and seed returns the same dataset and equivalent model output within floating-point tolerance. No server session is required to continue training.
 
-## 7. Non-functional requirements and measurable targets
+## 7. Logistic Regression backend contract (Milestone 4A)
+
+### Endpoint and model
+
+`POST /api/v1/experiments/logistic-regression` trains a univariate binary Logistic Regression model with `z = coefficient * x + intercept` and `p = sigmoid(z)`. It uses mean binary cross-entropy and explicit full-batch gradient descent without regularization. Each update computes both gradients from the same pre-update parameters and applies them simultaneously. The response includes the initial loss followed by the loss after every update (`steps + 1` values). The endpoint is stateless.
+
+### Request example
+
+```json
+{
+  "dataset": {"kind": "points", "x": [-2.0, -1.0, 1.0, 2.0], "y": [0, 0, 1, 1]},
+  "parameters": {"initial_coefficient": 0.0, "initial_intercept": 0.0, "learning_rate": 0.1, "steps": 0},
+  "threshold": 0.5,
+  "seed": 42
+}
+```
+
+The dataset may instead be `{"kind":"synthetic_logistic","n_samples":100,"true_coefficient":1.5,"true_intercept":0.0,"x_min":-4.0,"x_max":4.0}`. A local NumPy generator seeded by `seed` samples `x` uniformly from `[x_min, x_max)`, then samples each binary label from a Bernoulli distribution with probability `sigmoid(true_coefficient*x + true_intercept)`. Seeded requests are repeatable. The seed is echoed for inline points as well, although those observations do not use it.
+
+For `z_i = coefficient*x_i + intercept`, `p_i = sigmoid(z_i)`, and `n` observations, the objective is `BCE = (1/n) * sum(logaddexp(0, z_i) - y_i*z_i)`. The gradients are `d_coefficient = mean((p-y)*x)` and `d_intercept = mean(p-y)`. Each update subtracts `learning_rate * gradient` from both parameters using the same pre-update values. `steps: 0` evaluates the initial model without updating it.
+
+Example response for the request above:
+
+```json
+{
+  "algorithm": "logistic_regression",
+  "seed": 42,
+  "dataset": {"x": [-2.0, -1.0, 1.0, 2.0], "y": [0, 0, 1, 1]},
+  "parameters": {"initial_coefficient": 0.0, "initial_intercept": 0.0, "learning_rate": 0.1, "steps": 0},
+  "threshold": 0.5,
+  "model": {"coefficient": 0.0, "intercept": 0.0},
+  "predictions": {"probabilities": [0.5, 0.5, 0.5, 0.5], "predicted_classes": [1, 1, 1, 1]},
+  "metrics": {
+    "binary_cross_entropy": 0.6931471805599453,
+    "confusion_matrix": {"true_positive": 2, "true_negative": 0, "false_positive": 2, "false_negative": 0},
+    "accuracy": 0.5,
+    "precision": 0.5,
+    "recall": 1.0,
+    "f1": 0.6666666666666666
+  },
+  "training": {"steps_completed": 0, "loss_history": [0.6931471805599453]}
+}
+```
+
+### Validation and response semantics
+
+- Inline `x` and `y` arrays have equal lengths from 1 to 1,000; labels are exactly `0` or `1`. Synthetic sample count is 2 to 1,000. Feature values and coefficients/intercepts are finite with absolute magnitude at most `1e6`; synthetic `x_min` must be less than `x_max`.
+- `0 < learning_rate <= 1`; `0 <= steps <= 500`; `0 <= threshold <= 1`; seed is an unsigned 32-bit integer. Request bodies are limited to 1 MiB. Invalid input returns the standard structured HTTP 422 error; oversized bodies return HTTP 413.
+- Synthetic generation can probabilistically produce only one class, including for a fixed seed. Such a request returns structured HTTP 422 `SINGLE_CLASS_DATASET` with the observed class and sample count. It is not silently resampled or altered. This means not every seed is accepted, especially for small samples or extreme probabilities; repeatedly changing seeds until both classes appear conditions the selected sample and can bias what a learner sees. Inline one-class datasets are accepted so degenerate metric behavior is defined.
+- Stable sigmoid branches avoid unnecessary exponential overflow; BCE is evaluated with `logaddexp(0, z) - y*z`. Non-finite intermediate arithmetic returns structured HTTP 422 `NUMERICAL_DIVERGENCE` with step and field details, without a partial result or non-finite JSON.
+- Classification uses `probability >= threshold` for class 1. Confusion-matrix counts sum to the observation count. Accuracy, precision, recall, and F1 are returned with values in `[0,1]`; a zero denominator yields `0.0` for the affected metric.
+- The response contains algorithm, seed, effective dataset, training parameters, threshold, final coefficient/intercept, per-observation probabilities and predicted classes, binary cross-entropy, confusion matrix, accuracy/precision/recall/F1, completed steps, and loss history. Response validation checks array dimensions, threshold-derived classes, confusion counts, and `steps + 1` loss entries.
+
+The initial API intentionally does not return coefficient/intercept history. If the future UI requires a learning-step animation, a follow-up contract can add an explicit sequence of parameter pairs for each update; it must not infer parameters from loss values. Scikit-learn's default Logistic Regression includes regularization and solver behavior that differs from this unregularized explicit gradient descent, so it is not treated as an exact step-by-step oracle. Compare only a deliberately configured converged reference if a suitable like-for-like fixture is established.
+
+## 8. Non-functional requirements and measurable targets
 
 Initial targets for Linear Regression V1:
 
@@ -123,7 +180,7 @@ Initial targets for Linear Regression V1:
 
 These are targets, not achieved results. Before claiming them, benchmark at least 100 warmed requests for the backend targets and 30 representative UI interactions for frontend response time; record hardware/runtime versions, workload, percentiles, and payload size in the development log. Do not weaken correctness or silently drop chart data to meet a target.
 
-## 8. Mathematical acceptance and testing
+## 9. Mathematical acceptance and testing
 
 - Verify gradients and one-step updates against hand-calculated fixtures; verify `loss_history` length and MSE values.
 - Add explicit numerical-divergence tests that use finite, schema-valid inputs but cause a non-finite intermediate during gradient descent. Assert detection occurs at the first failing step, the API returns the structured `NUMERICAL_DIVERGENCE` error with step/field details, and no partial success response or NaN/Infinity is serialized. Also test that large but finite intermediates continue when they remain finite.
@@ -132,7 +189,7 @@ These are targets, not achieved results. Before claiming them, benchmark at leas
 - Tests cover frontend state/API behavior (Vitest + React Testing Library), backend schemas/routes/engine (pytest), and frontend-to-API contracts.
 - Later algorithms meet their dimension-specific mathematical acceptance checks and chart/result consistency checks.
 
-## 9. Assumptions and open decisions
+## 10. Assumptions and open decisions
 
 - V1 uses simple batch gradient descent without regularization; feature scaling is not implicit. Large feature magnitudes can require a small learning rate, so instability must be detected and explained.
 - Decide whether the synthetic data request includes an optional distribution/seeded shuffle and whether response echoes the complete effective request.

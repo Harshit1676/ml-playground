@@ -108,6 +108,7 @@ These instructions describe the deployment contract, not a provider-specific rel
 - `frontend/src/App.test.tsx`, feature tests, API-client tests, and chart-transform tests cover UI states, payloads, errors, stale requests, and response-derived visuals.
 - `backend/app/main.py` creates FastAPI and reads `APP_ENV`/`CORS_ALLOWED_ORIGINS` from the process environment; it defaults to Vite localhost origins in development and requires explicit non-wildcard origins in production. `backend/app/api/routes/health.py` defines the route and Pydantic response model.
 - `backend/app/api/router.py` mounts versioned routes under `/api/v1`; `backend/tests/test_health.py` covers the health response and CORS.
+- `backend/app/api/routes/logistic_regression.py`, `backend/app/schemas/logistic_regression.py`, `backend/app/services/logistic_regression.py`, and `backend/app/ml/logistic_regression.py` separate the Logistic Regression endpoint, typed contract, stateless orchestration/metrics, and NumPy training engine.
 - `.nvmrc` pins Node.js 24.22.3 for local use and GitHub Actions; `.github/workflows/ci.yml` runs frontend and backend checks without secrets.
 - `frontend/package.json` declares React, Vite, TypeScript, Tailwind CSS, Plotly's basic partial bundle, and the React Plotly adapter. `plotly.js-dist-min` is retained as a development-only type source. Tailwind's Vite plugin integrates utility generation; Vitest runs the tests, React Testing Library renders components in jsdom, and pytest plus HTTPX exercises FastAPI in-process.
 - `backend/requirements.txt` bounds FastAPI/Pydantic for the API, Uvicorn for local serving, and HTTPX/pytest for tests.
@@ -164,7 +165,28 @@ Run the experiment to send `POST /api/v1/experiments/linear-regression` with the
 
 Plotly is dynamically loaded when experiment results are displayed, keeping it out of the initial application chunk. The app uses the official `plotly.js-basic-dist-min` partial bundle, which includes the scatter trace used for observations, the fitted line, and the loss curve. The latest verified build emitted a 1,160.44 kB minified (384.74 kB gzip) deferred chart chunk; Vite still reports its minified-size warning. The API remains stateless, and this milestone adds no backend routes or algorithms.
 
-### Manual browser verification checklist
+## Logistic Regression backend (Milestone 4A)
+
+The initial backend slice adds `POST /api/v1/experiments/logistic-regression` for a one-feature binary classifier. This is a staged backend implementation; the planned learner-facing Logistic Regression experience remains two-dimensional and will need a later API/engine extension before its decision-boundary UI is complete.
+
+Request example:
+
+```json
+{
+  "dataset": {"kind": "points", "x": [-2, -1, 1, 2], "y": [0, 0, 1, 1]},
+  "parameters": {"initial_coefficient": 0, "initial_intercept": 0, "learning_rate": 0.1, "steps": 10},
+  "threshold": 0.5,
+  "seed": 42
+}
+```
+
+The dataset may also use `kind: "synthetic_logistic"` with `n_samples`, `true_coefficient`, `true_intercept`, `x_min`, and `x_max`. A local NumPy generator samples features uniformly from `[x_min, x_max)` and labels from Bernoulli probabilities produced by the sigmoid of the configured true linear score. Repeating a synthetic request with the same seed reproduces the data. Inline points are returned as submitted; the seed is echoed but does not generate them.
+
+Training uses `z = coefficient*x + intercept`, a numerically stable sigmoid, mean binary cross-entropy, and explicit full-batch gradient descent with simultaneous parameter updates. The response includes the effective dataset, model coefficient/intercept, per-observation probabilities and predicted classes, threshold, confusion matrix, accuracy/precision/recall/F1, and loss history with the initial loss plus each update. Class 1 is selected when `probability >= threshold`; metrics with zero denominators return `0.0`. Synthetic requests that produce only one class return structured HTTP 422 `SINGLE_CLASS_DATASET`; the generator does not silently resample. Retrying seeds until both classes appear selects samples conditionally and can bias learner expectations, particularly with small datasets or extreme probabilities. Non-finite intermediate arithmetic returns `NUMERICAL_DIVERGENCE` through the standard error envelope. Request limits are at most 1,000 observations, 500 updates, 1 MiB request body, finite feature/parameter magnitude up to `1e6`, learning rate `(0,1]`, threshold `[0,1]`, and uint32 seed.
+
+No coefficient/intercept history is currently returned. A future learning animation should add explicit parameter snapshots to the API instead of reconstructing them from loss values. Scikit-learn's regularized default Logistic Regression is not an exact reference for this unregularized explicit gradient-descent trace.
+
+## Linear Regression manual browser verification checklist
 
 1. Run the seeded default experiment and confirm the returned observations, fitted line, result metrics, and loss history appear.
 2. Change the learning rate, run again, and confirm the returned model/loss values update. Change the step count and confirm the loss chart contains `steps + 1` points.
