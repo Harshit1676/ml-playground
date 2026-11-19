@@ -1,5 +1,31 @@
 # Development Log
 
+## 2026-11-19 - Milestone 3 code review fixes
+
+- Invalid form submissions now clear a prior successful result so stale metrics and charts are not shown alongside validation errors. The result seed badge is shown only for synthetic dataset results.
+- The frontend response validator now checks that the backend echoes inline `x` and `y` observations from the submitted request, in addition to validating response dimensions and model predictions. This matches the current stateless backend service, which passes submitted inline arrays through unchanged.
+- Verification: frontend `npm test` passed (7 files, 44 tests); `npm run build` passed with the existing Vite warning for the 1,160.44 kB minified deferred Plotly chunk; backend pytest passed (41 tests, one existing Starlette/HTTPX deprecation warning); `git diff --check` passed.
+
+## 2026-11-19 - Milestone 3 interactive Linear Regression frontend
+
+- Replaced the health-only landing experience with a responsive Linear Regression lab while retaining the backend health status and retry control. Added seeded synthetic and inline point datasets, dataset and training controls, field-level validation, and a reset action.
+- Added a typed `POST /api/v1/experiments/linear-regression` client that sends the existing `dataset`, `parameters`, and `seed` contract, validates successful response shapes, shows structured backend errors, reports network/backend failures, supports retry, aborts superseded requests, and ignores stale responses. No backend API or ML computation was changed.
+- Added result cards for the returned model slope/intercept, MSE, and completed steps. Plotly traces use only returned observations, final returned model parameters, and the returned loss history; no intermediate parameter values are inferred. Plotly is code-split and loaded when charts are displayed.
+- Added `react-plotly.js` and `plotly.js-dist-min`. Added feature, API client, chart-transform, and app-shell tests for defaults, validation, payload construction, success/errors, loading, retry, reset, response-derived chart data, and stale requests.
+- Verification: frontend `npm test` passed (6 files, 31 tests); `npm run build` passed (TypeScript check and Vite production build); backend pytest passed (41 tests); `git diff --check` passed. Backend pytest retains the existing Starlette deprecation warning: `Using httpx with starlette.testclient is deprecated; install httpx2 instead.`
+- Build note: the initial app chunk is 244.02 kB minified (76.23 kB gzip). The deferred Plotly asset is 4,656.06 kB minified (1,423.60 kB gzip), so Vite reports its standard greater-than-500-kB chunk warning. It is deferred until results are shown, but remains a performance optimization opportunity; no performance benchmark was run.
+- Runtime note: this workstation used Node.js v25.2.0, outside the repository's declared Node.js 24.22.x support range. Tests and build passed here; repeat CI/local verification on the pinned Node.js 24.22.3 LTS before treating the supported runtime as verified.
+- Local preview: use the existing PowerShell commands in the README to run FastAPI and Vite in separate terminals. Automated frontend API tests use mocked fetch responses; a live deployed-service integration or browser screenshot was not performed.
+
+## 2026-11-19 - Milestone 3 final corrections
+
+- Set the noise slider step to `0.1`; the numeric field and range input both remain controlled by the same `noiseStd` form value. Inline datasets now hide the seed control while retaining the required top-level request `seed` (42 for inline requests); switching back to synthetic data restores the user's synthetic seed setting.
+- Strengthened successful-response validation to reject non-finite/negative loss values, mismatched prediction counts, and predictions inconsistent with the returned slope/intercept using a relative tolerance of `1e-9` rather than exact float equality. The backend schema was not changed.
+- Compared the original `plotly.js-dist-min@4.3.0` build (4,656.06 kB minified / 1,423.60 kB gzip for the deferred chunk) with the official `plotly.js-basic-dist-min@4.1.2` partial bundle (1,160.44 kB / 384.74 kB gzip). The basic bundle includes scatter marker and line modes plus the Plotly methods used by the React adapter; chart-transform and bundle-capability tests passed. Kept the full Plotly package only as a development type source. The smaller bundle still triggers Vite's >500 kB minified warning.
+- GitHub Actions uses `actions/setup-node` with `.nvmrc`, which pins Node.js 24.22.3. This workstation has Node.js 25.2.0 only; tests/build here do not verify Node 24. CI will verify that runtime after these changes are pushed.
+- Browser automation did not safely verify the local URL/target during this check. The README now contains a manual checklist for default runs, parameter changes, dataset switching, reset, validation, backend unavailability, mobile layout, and console errors. No browser flow is claimed as passed.
+- Verification: frontend `npm test` passed (7 files, 41 tests); `npm run build` passed with a Vite warning for the 1,160.44 kB minified chart chunk; backend pytest passed (41 tests, one existing Starlette/HTTPX deprecation warning); `git diff --check` passed. These checks ran on Node.js 25.2.0, outside the declared 24.22.x range.
+
 ## 2026-11-19 — Milestone 2 review fixes
 
 - Clarified that the PRD's absolute `1e6` observation bound applies to generated `x` and `y` as well as inline values. Synthetic configurations that produce a finite out-of-range `y` now return structured HTTP 422 `DATASET_VALUE_OUT_OF_RANGE` with field, index, actual value, and maximum magnitude; values are not clipped/rescaled and `NUMERICAL_DIVERGENCE` remains reserved for non-finite arithmetic.

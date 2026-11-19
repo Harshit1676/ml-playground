@@ -97,15 +97,19 @@ These instructions describe the deployment contract, not a provider-specific rel
 
 ## Important files and dependencies
 
-- `frontend/src/App.tsx` renders the responsive landing page and loading/connected/failed connection states.
+- `frontend/src/App.tsx` renders the Linear Regression learning experience and reports backend loading/connected/failed states.
 - `frontend/src/lib/api/health.ts` provides the typed health client, validates the response shape, and uses `VITE_API_BASE_URL` (defaulting to `http://localhost:8000`).
-- `frontend/src/styles.css` imports Tailwind CSS and contains the small amount of custom responsive page styling.
+- `frontend/src/styles.css` imports Tailwind CSS and contains responsive experiment controls, results, and chart styling.
 - `frontend/vite.config.ts` configures the React and Tailwind Vite plugins and Vitest's jsdom environment.
-- `frontend/src/App.test.tsx` and `frontend/src/lib/api/health.test.ts` cover UI states and API request/response behavior.
+- `frontend/src/features/linear-regression/LinearRegressionExperience.tsx` owns the form and page state; `request.ts` validates controls and constructs the existing API payload.
+- `frontend/src/lib/api/linearRegression.ts` sends typed experiment requests and validates successful response shape or surfaces the backend's structured error envelope.
+- `frontend/src/features/linear-regression/RegressionCharts.tsx` displays response-derived result charts; `frontend/src/lib/visualization/linearRegression.ts` maps API observations, final model parameters, and returned loss history into Plotly traces.
+- `frontend/src/components/PlotlyFigure.tsx` loads the React Plotly renderer only when result charts are shown. `react-plotly.js` adapts Plotly to React, `plotly.js-basic-dist-min` supplies the smaller runtime chart bundle, and `plotly.js-dist-min` supplies development-only TypeScript definitions.
+- `frontend/src/App.test.tsx`, feature tests, API-client tests, and chart-transform tests cover UI states, payloads, errors, stale requests, and response-derived visuals.
 - `backend/app/main.py` creates FastAPI and reads `APP_ENV`/`CORS_ALLOWED_ORIGINS` from the process environment; it defaults to Vite localhost origins in development and requires explicit non-wildcard origins in production. `backend/app/api/routes/health.py` defines the route and Pydantic response model.
 - `backend/app/api/router.py` mounts versioned routes under `/api/v1`; `backend/tests/test_health.py` covers the health response and CORS.
 - `.nvmrc` pins Node.js 24.22.3 for local use and GitHub Actions; `.github/workflows/ci.yml` runs frontend and backend checks without secrets.
-- `frontend/package.json` declares React, Vite, TypeScript, Tailwind CSS, Vitest, and React Testing Library. Tailwind's Vite plugin integrates utility generation; Vitest runs the tests, React Testing Library renders components in jsdom, and pytest plus HTTPX exercises FastAPI in-process.
+- `frontend/package.json` declares React, Vite, TypeScript, Tailwind CSS, Plotly's basic partial bundle, and the React Plotly adapter. `plotly.js-dist-min` is retained as a development-only type source. Tailwind's Vite plugin integrates utility generation; Vitest runs the tests, React Testing Library renders components in jsdom, and pytest plus HTTPX exercises FastAPI in-process.
 - `backend/requirements.txt` bounds FastAPI/Pydantic for the API, Uvicorn for local serving, and HTTPX/pytest for tests.
 
 ## Linear Regression API (Milestone 2)
@@ -150,4 +154,23 @@ Inline data accepts 1–1,000 observations; generated data accepts 2–1,000. Bo
 - `backend/app/middleware.py` enforces the 1 MiB write-body limit before JSON parsing.
 - `backend/tests/test_linear_regression.py` covers mathematical fixtures, determinism, continuation, validation, numerical safety, API behavior, and a scikit-learn comparison.
 
-NumPy supplies explicit float64 vector calculations and makes each educational gradient step inspectable. scikit-learn's `LinearRegression` is used only as a converged-fit reference in tests; for its seeded 100-point fixture, both slope and intercept are compared with absolute tolerance `1e-8`. It does not replace the requested batch-gradient-descent trace. New backend runtime dependencies are NumPy and scikit-learn; FastAPI/Pydantic provide HTTP/schema validation, while pytest/HTTPX provide route tests. The health check and Milestone 1 frontend remain in place. Plotly visualization of this endpoint is deferred to a later frontend milestone.
+NumPy supplies explicit float64 vector calculations and makes each educational gradient step inspectable. scikit-learn's `LinearRegression` is used only as a converged-fit reference in tests; for its seeded 100-point fixture, both slope and intercept are compared with absolute tolerance `1e-8`. It does not replace the requested batch-gradient-descent trace. New backend runtime dependencies are NumPy and scikit-learn; FastAPI/Pydantic provide HTTP/schema validation, while pytest/HTTPX provide route tests. The frontend consumes this existing stateless API; it does not run training calculations in React.
+
+## Linear Regression learning experience (Milestone 3)
+
+Open the Vite frontend using the commands in [Local development](#local-development-windows-powershell), ensure the FastAPI service is running, then choose a seeded synthetic dataset or enter comma-separated inline `x` and `y` observations. Adjust the sample count, true line, noise, feature range, seed, starting slope/intercept, learning rate, and update count. The numeric controls are validated against the existing backend schema before a request is sent. Synthetic observations that exceed the backend's documented magnitude limit are reported as structured validation errors; the frontend does not clip or rescale them.
+
+Run the experiment to send `POST /api/v1/experiments/linear-regression` with the documented `dataset`, `parameters`, and `seed` request fields. The typed API client validates the returned response shape. The results show the returned final slope, intercept, MSE, and completed steps. The scatterplot uses the returned observations and returned final model parameters. The loss chart plots the returned `training.loss_history` at step indices from zero through the completed step count; the frontend never invents intermediate parameter values. Network failures, backend errors, loading, and retryable failures have separate UI states. Submitting a newer request or invalid settings cancels/invalidate older responses so they cannot replace the current state.
+
+Plotly is dynamically loaded when experiment results are displayed, keeping it out of the initial application chunk. The app uses the official `plotly.js-basic-dist-min` partial bundle, which includes the scatter trace used for observations, the fitted line, and the loss curve. The latest verified build emitted a 1,160.44 kB minified (384.74 kB gzip) deferred chart chunk; Vite still reports its minified-size warning. The API remains stateless, and this milestone adds no backend routes or algorithms.
+
+### Manual browser verification checklist
+
+1. Run the seeded default experiment and confirm the returned observations, fitted line, result metrics, and loss history appear.
+2. Change the learning rate, run again, and confirm the returned model/loss values update. Change the step count and confirm the loss chart contains `steps + 1` points.
+3. Switch to inline points: confirm the seed control is hidden, edit `x`/`y`, and confirm the request still includes the API-required seed field. Switch back to synthetic data and confirm the seed control returns.
+4. Click **Reset to defaults** and confirm the synthetic seed, noise `1.2`, learning rate, steps, and result state reset.
+5. Enter an invalid value (for example, learning rate `0`) and confirm a useful field error appears and no invalid request is sent. Try a finite synthetic configuration that generates an out-of-range target and confirm the structured backend error is shown.
+6. Stop FastAPI while the page is open or point `VITE_API_BASE_URL` to an unavailable local port, then confirm backend-unavailable and retry states.
+7. Use browser device emulation at about 390 px wide and confirm controls/results stack without horizontal overflow.
+8. Clear DevTools Console, reload, run experiments, switch datasets, and reset; confirm no JavaScript errors appear.
