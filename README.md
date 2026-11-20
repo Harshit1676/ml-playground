@@ -97,15 +97,17 @@ These instructions describe the deployment contract, not a provider-specific rel
 
 ## Important files and dependencies
 
-- `frontend/src/App.tsx` renders the Linear Regression learning experience and reports backend loading/connected/failed states.
+- `frontend/src/App.tsx` provides query-string navigation between the Linear and Logistic Regression labs and reports backend loading/connected/failed states.
 - `frontend/src/lib/api/health.ts` provides the typed health client, validates the response shape, and uses `VITE_API_BASE_URL` (defaulting to `http://localhost:8000`).
 - `frontend/src/styles.css` imports Tailwind CSS and contains responsive experiment controls, results, and chart styling.
 - `frontend/vite.config.ts` configures the React and Tailwind Vite plugins and Vitest's jsdom environment.
-- `frontend/src/features/linear-regression/LinearRegressionExperience.tsx` owns the form and page state; `request.ts` validates controls and constructs the existing API payload.
+- `frontend/src/features/linear-regression/LinearRegressionExperience.tsx` and `frontend/src/features/logistic-regression/LogisticRegressionExperience.tsx` own each lab's form and page state; each feature's `request.ts` validates controls and constructs its existing API payload.
 - `frontend/src/lib/api/linearRegression.ts` sends typed experiment requests and validates successful response shape or surfaces the backend's structured error envelope.
+- `frontend/src/lib/api/logisticRegression.ts` sends the existing Logistic Regression request and validates response semantics, including returned probabilities, threshold metrics, confusion counts, and loss history.
 - `frontend/src/features/linear-regression/RegressionCharts.tsx` displays response-derived result charts; `frontend/src/lib/visualization/linearRegression.ts` maps API observations, final model parameters, and returned loss history into Plotly traces.
+- `frontend/src/features/logistic-regression/LogisticRegressionCharts.tsx` displays the observed binary labels, sigmoid derived from returned model parameters, active threshold, and returned BCE history; `frontend/src/features/logistic-regression/classification.ts` computes threshold-dependent labels and metrics locally.
 - `frontend/src/components/PlotlyFigure.tsx` loads the React Plotly renderer only when result charts are shown. `react-plotly.js` adapts Plotly to React, `plotly.js-basic-dist-min` supplies the smaller runtime chart bundle, and `plotly.js-dist-min` supplies development-only TypeScript definitions.
-- `frontend/src/App.test.tsx`, feature tests, API-client tests, and chart-transform tests cover UI states, payloads, errors, stale requests, and response-derived visuals.
+- `frontend/src/App.test.tsx`, feature tests, API-client tests, and chart-transform tests cover algorithm navigation, UI states, payloads, errors, stale requests, and response-derived visuals.
 - `backend/app/main.py` creates FastAPI and reads `APP_ENV`/`CORS_ALLOWED_ORIGINS` from the process environment; it defaults to Vite localhost origins in development and requires explicit non-wildcard origins in production. `backend/app/api/routes/health.py` defines the route and Pydantic response model.
 - `backend/app/api/router.py` mounts versioned routes under `/api/v1`; `backend/tests/test_health.py` covers the health response and CORS.
 - `backend/app/api/routes/logistic_regression.py`, `backend/app/schemas/logistic_regression.py`, `backend/app/services/logistic_regression.py`, and `backend/app/ml/logistic_regression.py` separate the Logistic Regression endpoint, typed contract, stateless orchestration/metrics, and NumPy training engine.
@@ -167,7 +169,7 @@ Plotly is dynamically loaded when experiment results are displayed, keeping it o
 
 ## Logistic Regression backend (Milestone 4A)
 
-The initial backend slice adds `POST /api/v1/experiments/logistic-regression` for a one-feature binary classifier. This is a staged backend implementation; the planned learner-facing Logistic Regression experience remains two-dimensional and will need a later API/engine extension before its decision-boundary UI is complete.
+The backend adds `POST /api/v1/experiments/logistic-regression` for a one-feature binary classifier. The M4B learner experience uses this contract as implemented. A two-feature classifier and a two-dimensional decision-boundary view remain future extensions and are not part of this milestone.
 
 Request example:
 
@@ -180,11 +182,25 @@ Request example:
 }
 ```
 
-The dataset may also use `kind: "synthetic_logistic"` with `n_samples`, `true_coefficient`, `true_intercept`, `x_min`, and `x_max`. A local NumPy generator samples features uniformly from `[x_min, x_max)` and labels from Bernoulli probabilities produced by the sigmoid of the configured true linear score. Repeating a synthetic request with the same seed reproduces the data. Inline points are returned as submitted; the seed is echoed but does not generate them.
+The dataset may also use `kind: "synthetic_logistic"` with `n_samples`, `true_coefficient`, `true_intercept`, `x_min`, and `x_max`. A local NumPy generator samples features uniformly from `[x_min, x_max)` and labels from Bernoulli probabilities produced by the sigmoid of the configured true linear score. A draw can round to the upper endpoint when represented as a float64. Repeating a synthetic request with the same seed reproduces the data. Inline points are returned as submitted; the seed is echoed but does not generate them.
 
 Training uses `z = coefficient*x + intercept`, a numerically stable sigmoid, mean binary cross-entropy, and explicit full-batch gradient descent with simultaneous parameter updates. The response includes the effective dataset, model coefficient/intercept, per-observation probabilities and predicted classes, threshold, confusion matrix, accuracy/precision/recall/F1, and loss history with the initial loss plus each update. Class 1 is selected when `probability >= threshold`; metrics with zero denominators return `0.0`. Synthetic requests that produce only one class return structured HTTP 422 `SINGLE_CLASS_DATASET`; the generator does not silently resample. Retrying seeds until both classes appear selects samples conditionally and can bias learner expectations, particularly with small datasets or extreme probabilities. Non-finite intermediate arithmetic returns `NUMERICAL_DIVERGENCE` through the standard error envelope. Request limits are at most 1,000 observations, 500 updates, 1 MiB request body, finite feature/parameter magnitude up to `1e6`, learning rate `(0,1]`, threshold `[0,1]`, and uint32 seed.
 
 No coefficient/intercept history is currently returned. A future learning animation should add explicit parameter snapshots to the API instead of reconstructing them from loss values. Scikit-learn's regularized default Logistic Regression is not an exact reference for this unregularized explicit gradient-descent trace.
+
+## Logistic Regression learning experience (Milestone 4B)
+
+Use the algorithm selector to open Logistic Regression directly or follow the `?algorithm=logistic-regression` deep link. The selector works with keyboard input and marks the active lab. Switching algorithms keeps each lab mounted so its form and result state remain available; **Reset to defaults** clears the Logistic Regression run and restores the seeded synthetic configuration.
+
+Choose seeded synthetic data or edit comma-separated inline `x` values and binary `y` labels. The synthetic form exposes sample count, true coefficient/intercept, feature range, and seed. The seed control is hidden for inline observations; the required API seed remains in the request using the default seed. Configure the initial coefficient/intercept, learning rate, number of updates, and submitted classification threshold. Controls are validated against the current FastAPI schema before sending `POST /api/v1/experiments/logistic-regression`.
+
+The response shows the learned coefficient and intercept, backend BCE, training updates, and classification metrics. The probability chart places observed labels at 0/1 and derives a sorted sigmoid curve from the returned final parameters; the loss chart plots only the returned BCE history, including step zero. There is no coefficient/intercept history, so the frontend does not invent training animation values.
+
+After training, move the exploration threshold to immediately recompute predicted classes, the confusion matrix, accuracy, precision, recall, and F1 from the returned probabilities and actual labels. Classification uses `probability >= threshold`; an undefined zero-denominator metric is shown as 0%, matching the backend. The submitted threshold remains visible separately. Threshold exploration does not retrain or change the model, probabilities, BCE, or loss history. The confusion matrix labels rows as actual classes and columns as predicted classes, with TP/TN/FP/FN definitions. Accuracy is presented alongside precision and recall because it is not a complete measure of model quality.
+
+Synthetic generation can return the structured `SINGLE_CLASS_DATASET` error for some seeds and settings; the UI explains that changing the seed or generator settings may help. Inline single-class observations remain valid and follow the backend's zero-denominator metric convention. This milestone remains one-feature only, has no training animation or two-dimensional decision boundary, and requires the FastAPI service to be available for experiments.
+
+Local verification commands from `frontend/` are `npm test` and `npm run build`; from `backend/` run `python -m pytest`. The M4B automated integration tests mock the HTTP response in the browser component. A live browser run or production deployment is not implied by passing these tests.
 
 ## Linear Regression manual browser verification checklist
 
@@ -196,3 +212,13 @@ No coefficient/intercept history is currently returned. A future learning animat
 6. Stop FastAPI while the page is open or point `VITE_API_BASE_URL` to an unavailable local port, then confirm backend-unavailable and retry states.
 7. Use browser device emulation at about 390 px wide and confirm controls/results stack without horizontal overflow.
 8. Clear DevTools Console, reload, run experiments, switch datasets, and reset; confirm no JavaScript errors appear.
+
+## Logistic Regression manual browser verification checklist
+
+1. Open Logistic Regression from the selector and load `/?algorithm=logistic-regression` directly; confirm the active item and backend health status.
+2. Run the default synthetic experiment and compare the probability chart, classification metrics, confusion matrix, and BCE chart with the returned API response.
+3. Move the exploration threshold, including an exact probability boundary; confirm labels, confusion counts, and threshold metrics update without a second POST. Confirm the submitted threshold, learned coefficients, probabilities, BCE, and loss history remain unchanged.
+4. Switch to inline observations, confirm the seed control is hidden, edit paired finite features and binary labels, and run. Switch back and verify the synthetic seed/configuration is preserved.
+5. Try mismatched arrays, a non-binary label, out-of-range controls, and the generated single-class case; verify actionable field or structured API errors and that previous results are cleared for invalid submissions.
+6. Reset after a completed run and confirm defaults are restored and old metrics/charts disappear. Switch between algorithm labs and use browser back/forward to verify navigation state.
+7. Stop FastAPI and confirm the health and experiment failure states are clear; then use a narrow viewport around 390 px and check for horizontal overflow and JavaScript console errors.

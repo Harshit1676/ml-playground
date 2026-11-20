@@ -1,12 +1,42 @@
 import { useEffect, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { LinearRegressionExperience } from './features/linear-regression/LinearRegressionExperience'
+import { LogisticRegressionExperience } from './features/logistic-regression/LogisticRegressionExperience'
 import { getHealth } from './lib/api/health'
 
 type ConnectionState = 'loading' | 'connected' | 'failed'
+type Algorithm = 'linear-regression' | 'logistic-regression'
+
+function algorithmFromLocation(): Algorithm {
+  return new URLSearchParams(window.location.search).get('algorithm') === 'logistic-regression'
+    ? 'logistic-regression'
+    : 'linear-regression'
+}
+
+function algorithmHref(algorithm: Algorithm): string {
+  const url = new URL(window.location.href)
+  url.searchParams.set('algorithm', algorithm)
+  return url.pathname + url.search + url.hash
+}
 
 function App() {
   const [connection, setConnection] = useState<ConnectionState>('loading')
   const [attempt, setAttempt] = useState(0)
+  const [algorithm, setAlgorithm] = useState<Algorithm>(algorithmFromLocation)
+
+  useEffect(() => {
+    const handlePopState = () => setAlgorithm(algorithmFromLocation())
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  function navigateTo(event: MouseEvent<HTMLAnchorElement>, nextAlgorithm: Algorithm) {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+    event.preventDefault()
+    if (nextAlgorithm === algorithm) return
+    window.history.pushState(null, '', event.currentTarget.href)
+    setAlgorithm(nextAlgorithm)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -34,7 +64,7 @@ function App() {
   }[connection]
 
   return (
-    <main className="page-shell">
+    <main id="home" className="page-shell">
       <nav className="topbar" aria-label="Main navigation">
         <a className="brand" href="#home" aria-label="ML Playground home">
           <span className="brand-mark" aria-hidden="true">M</span>
@@ -49,7 +79,29 @@ function App() {
         </div>
       </nav>
 
-      <LinearRegressionExperience />
+      <nav className="algorithm-nav" aria-label="Choose algorithm">
+        <a
+          href={algorithmHref('linear-regression')}
+          onClick={(event) => navigateTo(event, 'linear-regression')}
+          aria-current={algorithm === 'linear-regression' ? 'page' : undefined}
+        >
+          Linear Regression
+        </a>
+        <a
+          href={algorithmHref('logistic-regression')}
+          onClick={(event) => navigateTo(event, 'logistic-regression')}
+          aria-current={algorithm === 'logistic-regression' ? 'page' : undefined}
+        >
+          Logistic Regression
+        </a>
+      </nav>
+
+      <div hidden={algorithm !== 'linear-regression'}>
+        <LinearRegressionExperience />
+      </div>
+      <div hidden={algorithm !== 'logistic-regression'}>
+        <LogisticRegressionExperience />
+      </div>
 
       <footer className="footer">
         <span>ML Playground <span aria-hidden="true">·</span> Learn through experimentation</span>
