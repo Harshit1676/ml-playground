@@ -15,20 +15,21 @@ Goals:
 
 Beginner-to-intermediate learners need to understand what a chart encodes, see how parameters affect a model, follow selected calculations, and recover from confusing configurations without writing code.
 
-## 3. MVP scope
+## 3. Public launch scope
 
 Algorithms ship in this order:
 
 1. **Linear Regression:** V1 uses one numeric input feature `x` and one continuous target `y`. Fit a line, show predictions/residual error, and expose explicit gradient descent steps.
-2. **Logistic Regression:** two numeric input features and class labels. Show probabilities and decision boundary; distinguish probabilities from thresholded labels.
-3. **KNN:** two numeric input features and class labels. Show regions corresponding to selected `k` and distance rule.
-4. **K-Means:** two numeric input features, no labels. Show cluster assignments and centroids; explain initialization sensitivity.
+2. **Logistic Regression:** the current lab uses one numeric input feature `x` and a binary label `y`. Show probabilities, thresholded classes, classification metrics, and training loss. A two-feature decision-boundary experience is a future extension.
+3. **K-Means:** two numeric input features, no labels. Show cluster assignments and centroids; explain initialization sensitivity.
+
+**Later release:** KNN will use two numeric input features and class labels, with regions corresponding to selected `k` and distance rule. It is not in the public launch target.
 
 Shared capabilities include reproducible datasets, bounded parameter controls, mathematically grounded charts, plain-language explanations, typed REST interactions, useful validation errors, responsive layout, and keyboard accessibility.
 
-Out of scope: AI chatbot/LLM, authentication, database or saved experiment history, Redis, Celery/task queues, arbitrary code execution, and algorithms beyond the four listed.
+Out of scope for launch: KNN, the two-feature Logistic Regression decision boundary, AI chatbot/LLM, authentication, database or saved experiment history, Redis, Celery/task queues, arbitrary code execution, and other algorithms.
 
-**Milestone 4A staging note:** the first Logistic Regression backend slice intentionally implements a one-feature binary classifier (`x` plus label `y`) so its sigmoid, binary cross-entropy, gradient updates, and metrics can be verified independently. This is an implementation stage, not a change to the learner-facing two-feature MVP requirement above. The later Logistic Regression experience must extend the API and engine to two features before claiming the planned decision-boundary experience is complete. That extension will use a vector score `z = w1*x1 + w2*x2 + intercept`, preserve the binary loss/threshold/metric semantics, and provide response data sufficient to render the decision boundary; the future request/response field layout remains to be designed.
+**Milestones 4A and 4B:** the backend and current learner lab implement a one-feature binary classifier (`x` plus label `y`). The lab shows a sigmoid probability curve, observed labels, a threshold guide, classification metrics, and binary cross-entropy history; it does not show a two-dimensional decision boundary. A later extension must expand the API and engine to two features before claiming that decision-boundary experience. That extension will use a vector score `z = w1*x1 + w2*x2 + intercept`, preserve the binary loss/threshold/metric semantics, and provide response data sufficient to render the decision boundary; the future request/response field layout remains to be designed.
 
 ## 4. Core experience
 
@@ -41,7 +42,7 @@ Out of scope: AI chatbot/LLM, authentication, database or saved experiment histo
 
 ## 5. Functional requirements
 
-- **FR-1 Progression:** implement Linear Regression first, then Logistic Regression, KNN, and K-Means.
+- **FR-1 Progression:** launch Linear Regression, then Logistic Regression, then K-Means; plan KNN for a later release.
 - **FR-2 Dimensions:** enforce the per-algorithm feature and label dimensions defined in Section 3.
 - **FR-3 Data/controls:** users can select or configure supported datasets and valid parameters; generated data is seeded.
 - **FR-4 API/computation:** versioned Pydantic REST contracts call a separate Python engine for generation, training, prediction, metrics, and learning steps.

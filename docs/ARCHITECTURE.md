@@ -60,9 +60,9 @@ Keep algorithm functions importable without starting FastAPI. Keep Plotly detail
 ## 4. Dataset dimensions by algorithm
 
 - **Linear Regression V1:** one input feature `x` (scalar per observation) and one continuous target `y`. The chart plots `x` horizontally and `y` vertically. Do not describe this as a two-feature input dataset.
-- **Logistic Regression learner experience:** two numeric input features and a class label per observation. Milestone 4A first adds a one-feature backend slice for independently verifiable binary training; the later UI/API milestone must extend it to two features before the planned decision-boundary experience is complete.
-- **KNN:** two numeric input features and a class label per observation.
+- **Logistic Regression launch lab:** one numeric input feature and a binary class label per observation. Milestone 4A provides the backend and Milestone 4B uses it in the learner UI. A later API/engine extension will use two features for a two-dimensional decision-boundary experience.
 - **K-Means:** two numeric input features and no supplied labels; cluster assignment is a computed output.
+- **KNN, later release:** two numeric input features and a class label per observation.
 
 Keep these distinctions explicit in Pydantic schema variants and frontend controls. Do not send meaningless labels for K-Means.
 
@@ -120,7 +120,7 @@ The seed controls synthetic feature/noise generation through a local NumPy rando
 
 ## 6. Other API shape and stateless flow
 
-Use `/api/v1/experiments/{algorithm}` for remaining algorithm runs and explicit typed Pydantic variants. The Milestone 4A Logistic Regression backend accepts one feature and binary labels; its later learner-facing contract and KNN schemas require two features and labels. K-Means requires two feature values and excludes input labels. Return normalized data, predictions/probabilities or cluster assignments/centroids, named metrics, seed/effective parameters, and bounded chart data needed to accurately render the result.
+Use `/api/v1/experiments/{algorithm}` for remaining algorithm runs and explicit typed Pydantic variants. The current Logistic Regression backend and lab accept one feature and binary labels. Its future decision-boundary extension and the later-release KNN schemas require two features and labels. The next launch algorithm, K-Means, requires two feature values and excludes input labels. Return normalized data, predictions/probabilities or cluster assignments/centroids, named metrics, seed/effective parameters, and bounded chart data needed to accurately render the result.
 
 ```text
 Controls + current UI snapshot
@@ -180,4 +180,4 @@ Stateless synchronous calls simplify MVP operations and reproducibility. Strict 
 
 The initial model is univariate: `z = coefficient*x + intercept`, `p = sigmoid(z)`. Batch gradients for mean binary cross-entropy are `mean((p-y)*x)` and `mean(p-y)`; both parameters update simultaneously from the same previous state. Sigmoid uses sign-aware stable branches and BCE uses `logaddexp(0,z)-y*z`. Every update checks logits, residuals, gradients, candidate parameters, probabilities, and losses for finiteness. Thresholding uses `p >= threshold`; confusion counts and accuracy, precision, recall, and F1 are assembled in the service. Zero-denominator metrics return zero. Inline single-class data is supported; if seeded Bernoulli generation yields only one class, the service returns structured `SINGLE_CLASS_DATASET` rather than silently regenerating data.
 
-The request supports inline `points` and seeded `synthetic_logistic` datasets, at most 1,000 observations, learning rate in `(0,1]`, 0–500 steps, threshold in `[0,1]`, bounded finite features/parameters, and a uint32 seed. Successful responses contain effective data, final parameters, probabilities/classes, metrics, and initial-plus-post-update BCE history. Parameter history is intentionally absent; a future animation must add explicit parameter snapshots instead of deriving them from loss history. This 1D backend slice does not satisfy the planned two-feature Logistic Regression learner experience by itself. The future two-feature extension should use `z = w1*x1 + w2*x2 + intercept`, retain the current binary objective and metric definitions, and return enough model/prediction data for its decision-boundary visualization; its exact schema remains open.
+The request supports inline `points` and seeded `synthetic_logistic` datasets, at most 1,000 observations, learning rate in `(0,1]`, 0–500 steps, threshold in `[0,1]`, bounded finite features/parameters, and a uint32 seed. Successful responses contain effective data, final parameters, probabilities/classes, metrics, and initial-plus-post-update BCE history. Parameter history is intentionally absent; a future animation must add explicit parameter snapshots instead of deriving them from loss history. Milestone 4B presents this one-feature response as a probability curve, observed labels, threshold metrics, and BCE history. The future two-feature extension should use `z = w1*x1 + w2*x2 + intercept`, retain the current binary objective and metric definitions, and return enough model/prediction data for its decision-boundary visualization; its exact schema remains open.

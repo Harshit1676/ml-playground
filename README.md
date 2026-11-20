@@ -4,7 +4,7 @@ ML Playground is an interactive platform for beginner-to-intermediate learners t
 
 ## MVP
 
-Algorithms ship in this order: Linear Regression, Logistic Regression, K-Nearest Neighbors (KNN), then K-Means. Learners adjust datasets and parameters, inspect mathematically grounded results, and follow learning-step calculations where supported. Experiments are reproducible with explicit random seeds.
+The public launch target is Linear Regression, Logistic Regression, then K-Means. The current Logistic Regression lab uses one feature and binary labels; a two-feature decision-boundary experience is a future extension. K-Nearest Neighbors (KNN) is planned for a later release. Learners adjust datasets and parameters, inspect mathematically grounded results, and follow learning-step calculations where supported. Experiments are reproducible with explicit random seeds.
 
 The frontend owns controls, interaction, visualization, and explanation presentation. ML computation runs in a separate Python engine behind a stateless FastAPI service. MVP excludes authentication, a database, Redis, Celery, and an AI chatbot.
 
