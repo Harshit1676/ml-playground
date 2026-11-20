@@ -85,7 +85,9 @@ describe('ML Playground application shell', () => {
     await user.tab()
     expect(screen.getByRole('link', { name: 'K-Means' })).toHaveFocus()
     await user.tab()
-    expect(activeSelect).toHaveFocus()
+    const runButton = screen.getByRole('button', { name: /run experiment/i })
+    expect(runButton).toHaveFocus()
+    expect(runButton.closest('form')).toBe(activeSelect.closest('form'))
   })
 
   it('avoids duplicate history entries and handles history traversal', async () => {

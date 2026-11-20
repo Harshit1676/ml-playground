@@ -274,3 +274,35 @@ describe('LinearRegressionExperience', () => {
     expect(screen.queryByRole('heading', { name: 'The model learned a line' })).not.toBeInTheDocument()
   })
 })
+
+it('inspects the selected returned prediction and signed residual without another run', async () => {
+  const fetcher = vi.fn((_url: string, init: RequestInit) =>
+    Promise.resolve(jsonResponse(responseFor(JSON.parse(String(init.body))))))
+  vi.stubGlobal('fetch', fetcher)
+  render(<LinearRegressionExperience />)
+  fireEvent.click(screen.getByRole('button', { name: /run experiment/i }))
+  const slider = await screen.findByRole('slider', { name: /Observation 1 of 3/ })
+  fireEvent.change(slider, { target: { value: '2' } })
+  expect(screen.getByText('Observed y').nextElementSibling).toHaveTextContent('0.8')
+  expect(screen.getByText('Predicted y').nextElementSibling).toHaveTextContent('0.4')
+  expect(screen.getByText('Residual').nextElementSibling).toHaveTextContent('0.4')
+  const traces = JSON.parse(screen.getByTestId('regression-chart').textContent!)
+  expect(traces.at(-1)).toMatchObject({ x: [0, 0], y: [0.4, 0.8] })
+  expect(fetcher).toHaveBeenCalledTimes(1)
+})
+
+it('marks changed dataset recipes until the effective settings match the displayed run', async () => {
+  const fetcher = vi.fn((_url: string, init: RequestInit) =>
+    Promise.resolve(jsonResponse(responseFor(JSON.parse(String(init.body))))))
+  vi.stubGlobal('fetch', fetcher)
+  render(<LinearRegressionExperience />)
+  fireEvent.click(screen.getByText('Clean rising line'))
+  fireEvent.click(screen.getByRole('button', { name: /run experiment/i }))
+  await screen.findByTestId('regression-chart')
+  expect(requestFromFetch(fetcher).dataset).toMatchObject({ kind: 'synthetic_linear', noise_std: 0, slope: 2 })
+  fireEvent.click(screen.getByText('One outlier'))
+  expect(screen.getByText(/Showing the previous settings/)).toBeVisible()
+  fireEvent.click(screen.getByText('Clean rising line'))
+  expect(screen.queryByText(/Showing the previous settings/)).toBeNull()
+  expect(fetcher).toHaveBeenCalledTimes(1)
+})

@@ -8,6 +8,16 @@ The public launch target is Linear Regression, Logistic Regression, then K-Means
 
 The frontend owns controls, interaction, visualization, and explanation presentation. ML computation runs in a separate Python engine behind a stateless FastAPI service. MVP excludes authentication, a database, Redis, Celery, and an AI chatbot.
 
+## Exploring a completed run
+
+Choose **Run experiment** to train with the current settings. On small screens, **Edit experiment settings** opens the full form. A notice above the results identifies edits that need another run. You can explore the displayed run while deciding what to try next.
+
+- **Linear Regression.** Try a clean rising line, a noisy downward line, or a small dataset with an outlier. Click an observation or use the arrow keys on the observation slider to inspect its observed target, returned prediction, and signed residual in target units.
+- **Logistic Regression.** Move the threshold below the probability curve to see how many observations change predicted class relative to the submitted threshold. Compare the new confusion counts and classification metrics.
+- **K-Means.** Select an iteration to compare it with the preceding backend snapshot. Dotted trails show centroid movement. The table gives distance moved, and the summary counts observations that changed cluster.
+
+Point selection, threshold exploration, and iteration navigation use the completed response without another training request.
+
 ## Final stack
 
 - **Frontend:** React, Vite, TypeScript, Tailwind CSS, Plotly.js
@@ -165,7 +175,7 @@ Open the Vite frontend using the commands in [Local development](#local-developm
 
 Run the experiment to send `POST /api/v1/experiments/linear-regression` with the documented `dataset`, `parameters`, and `seed` request fields. The typed API client validates the returned response shape. The results show the returned final slope, intercept, MSE, and completed steps. The scatterplot uses the returned observations and returned final model parameters. The loss chart plots the returned `training.loss_history` at step indices from zero through the completed step count; the frontend never invents intermediate parameter values. Network failures, backend errors, loading, and retryable failures have separate UI states. Submitting a newer request or invalid settings cancels/invalidate older responses so they cannot replace the current state.
 
-Plotly is dynamically loaded when experiment results are displayed, keeping it out of the initial application chunk. The app uses the official `plotly.js-basic-dist-min` partial bundle, which includes the scatter trace used for observations, the fitted line, and the loss curve. The latest verified build emitted a 1,160.44 kB minified (384.74 kB gzip) deferred chart chunk; Vite still reports its minified-size warning. The API remains stateless, and this milestone adds no backend routes or algorithms.
+Plotly is dynamically loaded when experiment results are displayed, keeping it out of the initial application chunk. The app uses the official `plotly.js-basic-dist-min` partial bundle, which includes the scatter trace used for observations, the fitted line, and the loss curve. The latest verified build emitted a 1,160.65 kB minified (384.84 kB gzip) deferred chart chunk; Vite still reports its minified-size warning. The API remains stateless, and this milestone adds no backend routes or algorithms.
 
 ## Logistic Regression backend (Milestone 4A)
 
@@ -217,7 +227,7 @@ Local verification commands from `frontend/` are `npm test` and `npm run build`;
 
 1. Open Logistic Regression from the selector and load `/?algorithm=logistic-regression` directly; confirm the active item and backend health status.
 2. Run the default synthetic experiment and compare the probability chart, classification metrics, confusion matrix, and BCE chart with the returned API response.
-3. Move the exploration threshold, including an exact probability boundary; confirm labels, confusion counts, and threshold metrics update without a second POST. Confirm the submitted threshold, learned coefficients, probabilities, BCE, and loss history remain unchanged.
+3. Move the exploration threshold, including an exact probability boundary; confirm predicted classes, confusion counts, and threshold metrics update without a second POST. Confirm the submitted threshold, learned coefficients, probabilities, BCE, and loss history remain unchanged.
 4. Switch to inline observations, confirm the seed control is hidden, edit paired finite features and binary labels, and run. Switch back and verify the synthetic seed/configuration is preserved.
 5. Try mismatched arrays, a non-binary label, out-of-range controls, and the generated single-class case; verify actionable field or structured API errors and that previous results are cleared for invalid submissions.
 6. Reset after a completed run and confirm defaults are restored and old metrics/charts disappear. Switch between algorithm labs and use browser back/forward to verify navigation state.

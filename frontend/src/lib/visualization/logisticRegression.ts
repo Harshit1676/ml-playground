@@ -37,7 +37,7 @@ export function buildLogisticRegressionTraces(
       y: indexes.map((index) => response.dataset.y[index]),
       text: indexes.map((index) => `Predicted class ${predictedClasses[index]} · probability ${response.predictions.probabilities[index]}`),
       marker: {
-        color: label === 0 ? '#397a9b' : '#c58043',
+        color: label === 0 ? '#397a9b' : '#975320',
         symbol: label === 0 ? 'circle' : 'diamond',
         size: 10,
         line: { color: '#fffefa', width: 1.5 },
@@ -75,7 +75,6 @@ export function buildLogisticRegressionLayout(): Partial<Layout> {
     margin: { l: 58, r: 18, t: 32, b: 50 },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    font: { family: 'Inter, ui-sans-serif, system-ui, sans-serif', color: '#536366', size: 11 },
     legend: { orientation: 'h', y: 1.02, yanchor: 'bottom', x: 0 },
     xaxis: { title: { text: 'Feature x' }, zeroline: false, gridcolor: '#e8ebe5' },
     yaxis: {
@@ -95,8 +94,8 @@ export function buildLogisticLossTraces(response: LogisticRegressionResponse): D
     name: 'Binary cross-entropy',
     x: response.training.loss_history.map((_, step) => step),
     y: response.training.loss_history,
-    marker: { color: '#c58043', size: 5 },
-    line: { color: '#c58043', width: 2 },
+    marker: { color: '#975320', size: 5 },
+    line: { color: '#975320', width: 2 },
     hovertemplate: 'Step %{x}<br>BCE = %{y:.5f}<extra></extra>',
   }]
 }
@@ -107,7 +106,6 @@ export function buildLogisticLossLayout(): Partial<Layout> {
     margin: { l: 65, r: 18, t: 18, b: 48 },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    font: { family: 'Inter, ui-sans-serif, system-ui, sans-serif', color: '#536366', size: 11 },
     showlegend: false,
     xaxis: { title: { text: 'Training step' }, rangemode: 'tozero', gridcolor: '#e8ebe5' },
     yaxis: { title: { text: 'Binary cross-entropy' }, rangemode: 'tozero', gridcolor: '#e8ebe5' },

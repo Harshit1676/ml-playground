@@ -5,8 +5,8 @@ export const colors = ['#176e5a','#a65322','#35699e','#80549c','#9b3656','#68772
   '#46633a','#755f9b','#a03d36','#517b91','#6c5652','#357052','#705275','#56618c']
 const symbols = ['circle','square','diamond','triangle-up','triangle-down','hexagon','pentagon','star'] as const
 
-export function scatterData(points: Point[], state: Snapshot): Data[] {
-  return [
+export function scatterData(points: Point[], state: Snapshot, previous?: Snapshot): Data[] {
+  const traces: Data[] = [
     { type: 'scatter', mode: 'markers', name: 'Observations',
       x: points.map(p => p[0]), y: points.map(p => p[1]), customdata: state.assignments,
       marker: { size: 8, color: state.assignments.map(i => colors[i]), symbol: state.assignments.map(i => symbols[i % symbols.length]), opacity: 0.8 },
@@ -16,6 +16,20 @@ export function scatterData(points: Point[], state: Snapshot): Data[] {
       marker: { size: 17, symbol: 'x', color: colors.slice(0, state.centroids.length), line: { color: '#19272b', width: 1.5 } },
       hovertemplate: 'Centroid %{customdata}<br>(%{x}, %{y})<extra></extra>' },
   ]
+  if (previous) {
+    const x: (number | null)[] = []
+    const y: (number | null)[] = []
+    state.centroids.forEach(([cx, cy], id) => {
+      const [px, py] = previous.centroids[id]
+      if (cx !== px || cy !== py) {
+        x.push(px, cx, null)
+        y.push(py, cy, null)
+      }
+    })
+    traces.push({ type: 'scatter', mode: 'lines', name: 'Centroid movement', x, y,
+      line: { color: '#4d5966', width: 2, dash: 'dot' }, hoverinfo: 'skip' })
+  }
+  return traces
 }
 
 function axisRange(points: Point[], dimension: 0 | 1): [number, number] {

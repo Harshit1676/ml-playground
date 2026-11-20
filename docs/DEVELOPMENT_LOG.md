@@ -1,5 +1,13 @@
 # Development Log
 
+## 2026-11-20 — Learning lab readability and accessibility
+
+- Moved primary plots ahead of model summaries and put Run above the controls. Mobile settings collapse on submission and reopen for field errors. Matched draft and submitted request payloads to flag stale results, including edits made while a request is pending.
+- Linear Regression gained three reproducible dataset recipes, pointer and keyboard observation selection, and a signed residual based on the returned prediction. Logistic Regression shows predicted-class changes relative to the submitted threshold. K-Means compares adjacent backend snapshots for centroid trails, travel distances, and the count of reassigned observations.
+- Compared all three default runs in local Chrome with FastAPI at 1440 × 900, 1280 × 800, and 390 × 844. At 1280 px wide the plot tops moved from 814 to 360 px (Linear), 1,389 to 360 px (Logistic), and 654 to 381 px (K-Means). At 390 px wide they moved from 2,404 to 511 px, 3,273 to 532 px, and 1,655 to 522 px respectively. Saved 18 full-resolution screenshots and a comparison gallery in the local review output.
+- Checked input edits and reversions, keyboard focus, chart selection, threshold/iteration controls, loading, validation, and offline retry. The nine default views had no horizontal page overflow or JavaScript exceptions. Exploration produced zero extra training POSTs. Sampled text contrast reached at least 4.82:1 across the nine views, with plot text at 9.46:1 or higher. Helper text increased from 9 to 13 px and field labels from 10 to 14 px. Physical devices and screen readers remain untested.
+- Node 24.22.3 passed all 111 frontend tests across 14 files and the TypeScript/Vite build. Backend pytest passed all 117 tests. Vite still warns about the deferred Plotly chunk (1,160.65 kB minified, 384.84 kB gzip). Starlette still warns about the TestClient HTTPX dependency.
+
 ## Milestone 5B — interactive K-Means lab
 
 - Added the third algorithm link, inline and synthetic forms, runtime response checks and a manual snapshot explorer. Every displayed centroid, assignment and inertia comes from the accepted backend run. Both charts follow the same selected iteration. A text table exposes empty clusters, overlapping centroids and individual assignments.
