@@ -2,7 +2,7 @@
 
 ## Product boundaries
 
-- Build for beginner-to-intermediate learners. Deliver Linear Regression, Logistic Regression, KNN, then K-Means.
+- Build for beginner-to-intermediate learners. The public launch target is Linear Regression, Logistic Regression, then K-Means; plan KNN for a later release.
 - Keep MVP experiments stateless and reproducible with explicit seeds.
 - Do not add authentication, a database, Redis, Celery, or AI chatbot/LLM integration.
 - Charts and explanations must describe results computed from the same request and dataset.
@@ -16,7 +16,7 @@
 - Separate backend API routes, request/response schemas, services, and ML algorithms. Keep algorithm code independent from HTTP concerns.
 - Validate schemas, finite values, feature dimensions, parameter ranges, seeds, payload sizes, and work limits at the API boundary. Return typed errors.
 - Use scikit-learn as a reference where appropriate. Document intentional differences, especially when transparent step calculations are needed for teaching.
-- Dataset dimensions: Linear Regression V1 has one input feature `x` and one continuous target `y`; Logistic Regression and KNN have two input features plus labels; K-Means has two input features and no labels.
+- Dataset dimensions: Linear Regression V1 has one input feature `x` and one continuous target `y`; the current Logistic Regression lab has one feature `x` and a binary label `y`; K-Means has two input features and no labels. Future two-feature Logistic Regression and KNN experiences use two input features plus labels.
 
 ## Testing and performance
 
