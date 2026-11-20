@@ -172,7 +172,9 @@ The initial API intentionally does not return coefficient/intercept history. If 
 
 ## K-Means backend contract (Milestone 5A)
 
-`POST /api/v1/experiments/kmeans` accepts `dataset.kind = "points"` and an ordered `dataset.points` array of 1–1,000 unlabeled coordinate pairs. Each coordinate must be a finite JSON number in `[-1e6, 1e6]`. Required integer fields are `parameters.k` (1–16 and at most the observation count), `parameters.max_iterations` (1–100) and a uint32 `seed`. The shared 1 MiB request limit and structured validation errors apply.
+`POST /api/v1/experiments/k-means` accepts either inline points or a synthetic recipe. For `dataset.kind = "points"`, supply an ordered `dataset.points` array of 1–1,000 unlabeled coordinate pairs. Each coordinate must be a finite JSON number in `[-1e6, 1e6]`. Required integer fields are `parameters.k` (1–16 and at most the observation count), `parameters.max_iterations` (1–100) and a uint32 `seed`. The shared 1 MiB request limit and structured validation errors apply.
+
+For `dataset.kind = "synthetic_clusters"`, supply integer `n_samples` (1–1,000), `centers` (1–16 coordinate pairs), finite `spread` (0–1e6) and uint32 `generation_seed`. Each observation chooses a source center uniformly with replacement and adds independent uniform offsets on both axes from `-spread` to `+spread`. Zero spread produces the selected source coordinates exactly. Every source square must fit inside the coordinate bounds, or the API returns HTTP 422. The cluster count requested for fitting is independent of the number of source centers. The response echoes the recipe alongside `dataset.points`, the effective observations passed to training. Only the generation RNG uses `generation_seed`; the top-level seed selects the initial centroids.
 
 The seed selects observation rows without replacement. Cluster IDs are zero-based positions in that sample. Repeating the same ordered input and seed reproduces the run. Duplicate coordinates are valid. Equal distances go to the lowest cluster ID, and an empty cluster retains its previous center. The result can therefore contain fewer than `k` occupied clusters.
 

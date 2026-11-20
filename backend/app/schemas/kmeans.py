@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 Coordinate = Annotated[float, Field(strict=True, allow_inf_nan=False, ge=-1_000_000, le=1_000_000)]
 Point = tuple[Coordinate, Coordinate]
 Inertia = Annotated[float, Field(allow_inf_nan=False, ge=0)]
+Seed = Annotated[int, Field(strict=True, ge=0, le=4_294_967_295)]
+PointList = Annotated[list[Point], Field(min_length=1, max_length=1000)]
 
 
 class ContractModel(BaseModel):
@@ -15,7 +17,31 @@ class ContractModel(BaseModel):
 
 class PointsDataset(ContractModel):
     kind: Literal["points"]
-    points: list[Point] = Field(min_length=1, max_length=1000)
+    points: PointList
+
+
+class SyntheticClusterDataset(ContractModel):
+    kind: Literal["synthetic_clusters"]
+    n_samples: int = Field(strict=True, ge=1, le=1000)
+    centers: list[Point] = Field(min_length=1, max_length=16)
+    spread: float = Field(strict=True, allow_inf_nan=False, ge=0, le=1_000_000)
+    generation_seed: Seed
+
+    @model_validator(mode="after")
+    def bounded_support(self) -> "SyntheticClusterDataset":
+        if any(abs(value) + self.spread > 1_000_000 for center in self.centers for value in center):
+            raise ValueError("each center coordinate plus or minus spread must stay within +/-1,000,000")
+        return self
+
+
+class GeneratedPoints(SyntheticClusterDataset):
+    points: PointList
+
+    @model_validator(mode="after")
+    def matching_sample_count(self) -> "GeneratedPoints":
+        if len(self.points) != self.n_samples:
+            raise ValueError("generated point count must match n_samples")
+        return self
 
 
 class KMeansParameters(ContractModel):
@@ -23,14 +49,18 @@ class KMeansParameters(ContractModel):
     max_iterations: int = Field(strict=True, ge=1, le=100)
 
 
-class KMeansRequest(ContractModel):
-    dataset: PointsDataset
+class ExperimentConfig(ContractModel):
     parameters: KMeansParameters
-    seed: int = Field(strict=True, ge=0, le=4_294_967_295)
+    seed: Seed
+
+
+class KMeansRequest(ExperimentConfig):
+    dataset: Annotated[PointsDataset | SyntheticClusterDataset, Field(discriminator="kind")]
 
     @model_validator(mode="after")
     def enough_observations(self) -> "KMeansRequest":
-        if self.parameters.k > len(self.dataset.points):
+        count = len(self.dataset.points) if self.dataset.kind == "points" else self.dataset.n_samples
+        if self.parameters.k > count:
             raise ValueError("k must not exceed the number of observations")
         return self
 
@@ -58,7 +88,8 @@ class TrainingSummary(ContractModel):
     snapshots: list[IterationSnapshot] = Field(min_length=2, max_length=101)
 
 
-class KMeansResponse(KMeansRequest):
+class KMeansResponse(ExperimentConfig):
+    dataset: Annotated[PointsDataset | GeneratedPoints, Field(discriminator="kind")]
     algorithm: Literal["kmeans"] = "kmeans"
     model: ClusterModel
     assignments: list[int]
@@ -68,6 +99,8 @@ class KMeansResponse(KMeansRequest):
     @model_validator(mode="after")
     def consistent_result(self) -> "KMeansResponse":
         k = self.parameters.k
+        if k > len(self.dataset.points):
+            raise ValueError("k must not exceed the number of observations")
         training = self.training
         if len(self.model.centroids) != k or len(training.initial_centroids) != k:
             raise ValueError("expected k initial and final centroids")

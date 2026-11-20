@@ -145,6 +145,8 @@ Every request carries all required data and state. The backend stores no user or
 
 ### K-Means iteration playback
 
+The service resolves inline points directly or asks `app.ml.clustered_dataset` to generate observations with a local RNG seeded by `dataset.generation_seed`. Both paths pass only the effective coordinates, fit parameters and top-level initialization seed to the same Lloyd engine. The synthetic response carries both the recipe and those coordinates for replay.
+
 The NumPy engine captures one state after initial assignment and one after each centroid update and reassignment. Each update works on a fresh centroid array so later steps preserve earlier coordinates. The service serializes these states in `training.snapshots`. The response schema checks iteration order, dimensions, ID ranges, agreement with the final summary and the stopping condition. A learner interface can render any snapshot with the single dataset returned for the experiment.
 
 Random row sampling makes seed sensitivity observable. K-Means++ would weight later choices toward points farther from existing centers and would change the meaning of the seed. Keeping an empty center preserves its ID and location so a later reassignment can fill it. Moving it to a farthest point would introduce an extra recovery step and tie rule, and coincident observations can still leave centers empty.

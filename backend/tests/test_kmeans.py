@@ -9,7 +9,7 @@ from app.main import create_app
 from app.ml.kmeans import fit_kmeans
 
 client = TestClient(create_app())
-endpoint = "/api/v1/experiments/kmeans"
+endpoint = "/api/v1/experiments/k-means"
 
 
 def experiment(points, k=2, iterations=10, seed=42):
@@ -189,3 +189,78 @@ def test_nonfinite_coordinate_returns_serializable_validation_error():
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def synthetic_request(**changes):
+    return {
+        "dataset": {
+            "kind": "synthetic_clusters", "centers": [[-4, 2], [6, -3]], "spread": 0.25,
+            "generation_seed": 17, "n_samples": 30, **changes,
+        },
+        "parameters": {"k": 3, "max_iterations": 10},
+        "seed": 42,
+    }
+
+
+def test_seeds_control_separate_stages_and_generated_points_can_be_replayed_inline():
+    request = synthetic_request()
+    response = client.post(endpoint, json=request)
+    assert response.status_code == 200
+    run = response.json()
+    assert client.post(endpoint, json=request).json() == run
+    points = run["dataset"]["points"]
+    assert run["dataset"] == {**request["dataset"], "points": points}
+    assert len(points) == 30
+    assert all(any(max(abs(x - cx), abs(y - cy)) <= 0.25 for cx, cy in request["dataset"]["centers"])
+               for x, y in points)
+    other_init = client.post(endpoint, json={**request, "seed": 7}).json()
+    assert other_init["dataset"] == run["dataset"]
+    assert other_init["training"]["initial_centroids"] != run["training"]["initial_centroids"]
+
+    other_data = client.post(endpoint, json=synthetic_request(generation_seed=18)).json()
+    assert other_data["dataset"]["points"] != points
+    inline = {**request, "dataset": {"kind": "points", "points": points}}
+    assert client.post(endpoint, json=inline).json() == {**run, "dataset": inline["dataset"]}
+
+
+@pytest.mark.parametrize(("count", "centers", "spread", "generation_seed"), [
+    (1, [[1e6, -1e6]], 0, 0),
+    (1000, [[0, 0]] * 16, 1e6, 2**32 - 1),
+])
+def test_synthetic_limits(count, centers, spread, generation_seed):
+    request = synthetic_request(n_samples=count, centers=centers, spread=spread, generation_seed=generation_seed)
+    request["parameters"]["k"] = 1
+    response = client.post(endpoint, json=request)
+    assert response.status_code == 200
+    points = response.json()["dataset"]["points"]
+    assert len(points) == count
+    assert np.abs(points).max() <= 1e6
+    if spread == 0:
+        assert points == centers
+
+
+@pytest.mark.parametrize("changes", [
+    {"n_samples": 0}, {"n_samples": 1001}, {"n_samples": 3.5}, {"n_samples": 2},  # k = 3
+    {"centers": []}, {"centers": [[0, 0]] * 17}, {"centers": [[1]]}, {"centers": [[1, 2, 3]]},
+    {"centers": [[1_000_001, 0]]}, {"centers": [[0, -1e6]]},  # spread would exceed the bound
+    {"spread": -1}, {"spread": 1_000_001}, {"spread": True},
+    {"generation_seed": -1}, {"generation_seed": 2**32}, {"generation_seed": True},
+    {"labels": [1]}, {"points": [[0, 0]]},
+])
+def test_synthetic_invalid_requests(changes):
+    response = client.post(endpoint, json=synthetic_request(**changes))
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_canonical_route_and_discriminated_openapi_contract():
+    spec = client.get("/openapi.json").json()
+    assert "/api/v1/experiments/kmeans" not in spec["paths"]
+    assert client.post("/api/v1/experiments/kmeans", json=synthetic_request()).status_code == 404
+    operation = spec["paths"][endpoint]["post"]
+    contracts = [operation["requestBody"], operation["responses"]["200"]]
+    for contract in contracts:
+        ref = contract["content"]["application/json"]["schema"]["$ref"]
+        dataset = spec["components"]["schemas"][ref.rsplit("/", 1)[1]]["properties"]["dataset"]
+        assert dataset["discriminator"]["propertyName"] == "kind"
+        assert set(dataset["discriminator"]["mapping"]) == {"points", "synthetic_clusters"}

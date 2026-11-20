@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/experiments/kmeans",
+    "/experiments/k-means",
     response_model=KMeansResponse,
     responses={
         413: {"model": ErrorResponse, "description": "Request body exceeds 1 MiB."},

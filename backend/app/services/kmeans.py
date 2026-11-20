@@ -1,16 +1,23 @@
+from app.ml.clustered_dataset import generate_clustered_points
 from app.ml.kmeans import fit_kmeans
-from app.schemas.kmeans import ClusterModel, IterationSnapshot, KMeansRequest, KMeansResponse, Metrics, TrainingSummary
+from app.schemas.kmeans import (
+    ClusterModel, GeneratedPoints, IterationSnapshot, KMeansRequest, KMeansResponse, Metrics, TrainingSummary,
+)
 
 
 def run_kmeans_experiment(request: KMeansRequest) -> KMeansResponse:
+    dataset = request.dataset
+    if dataset.kind == "synthetic_clusters":
+        points = generate_clustered_points(dataset.centers, dataset.n_samples, dataset.spread, dataset.generation_seed)
+        dataset = GeneratedPoints(**dataset.model_dump(), points=points.tolist())
     result = fit_kmeans(
-        request.dataset.points,
+        dataset.points,
         k=request.parameters.k,
         max_iterations=request.parameters.max_iterations,
         seed=request.seed,
     )
     return KMeansResponse(
-        dataset=request.dataset,
+        dataset=dataset,
         parameters=request.parameters,
         seed=request.seed,
         model=ClusterModel(centroids=result.centroids.tolist()),

@@ -1,5 +1,11 @@
 # Development Log
 
+## Milestone 5A contract corrections
+
+- Standardized the route on `POST /api/v1/experiments/k-means`. OpenAPI now advertises request and response dataset variants keyed by `kind`.
+- Added an unlabeled square-cluster generator. Each request uses its own generation RNG and the existing centroid initialization RNG. The synthetic response includes the generator recipe and effective points. Replaying those points inline reproduced every training snapshot.
+- Verified 117 backend tests and 84 frontend tests across 12 files. The frontend production build passed. Both complete README request/response pairs matched FastAPI TestClient responses. Checks used Node 25.2.0 locally. The existing Starlette TestClient deprecation and deferred Plotly chunk-size warnings remain.
+
 ## Milestone 5A audit — iteration playback
 
 - Added bounded, numbered snapshots with centroid coordinates, assignments and inertia. Fixed a rounding defect where averaging three identical decimal coordinates moved the center and produced positive inertia.
