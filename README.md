@@ -222,3 +222,19 @@ Local verification commands from `frontend/` are `npm test` and `npm run build`;
 5. Try mismatched arrays, a non-binary label, out-of-range controls, and the generated single-class case; verify actionable field or structured API errors and that previous results are cleared for invalid submissions.
 6. Reset after a completed run and confirm defaults are restored and old metrics/charts disappear. Switch between algorithm labs and use browser back/forward to verify navigation state.
 7. Stop FastAPI and confirm the health and experiment failure states are clear; then use a narrow viewport around 390 px and check for horizontal overflow and JavaScript console errors.
+
+## K-Means backend (Milestone 5A)
+
+Use `training.snapshots[0]` to inspect initialization. Each subsequent entry contains the centroids, assignments and inertia after one completed update. The last entry matches the final summary.
+
+Open `/docs` on the running FastAPI service and try `POST /api/v1/experiments/kmeans` with four unlabeled 2D observations.
+
+```json
+{
+  "dataset": {"kind": "points", "points": [[0, 0], [2, 4], [8, 8], [10, 12]]},
+  "parameters": {"k": 2, "max_iterations": 10},
+  "seed": 42
+}
+```
+
+For this example the sampled centers start at `[[0, 0], [10, 12]]`. After one update the centers are `[[1, 2], [9, 10]]` and the assignments are `[0, 0, 1, 1]`. Each point now contributes 5 to the sum of squared distances, so inertia falls from 40 to 20. Changing the seed explores the effect of starting from different observations. See the [K-Means contract](docs/PRD.md#k-means-backend-contract-milestone-5a) for limits and stopping rules.

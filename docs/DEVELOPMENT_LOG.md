@@ -1,5 +1,18 @@
 # Development Log
 
+## Milestone 5A audit — iteration playback
+
+- Added bounded, numbered snapshots with centroid coordinates, assignments and inertia. Fixed a rounding defect where averaging three identical decimal coordinates moved the center and produced positive inertia.
+- Tested a mixed duplicate-coordinate dataset with five distinct locations and four sampled rows. One empty center later gained members and another stayed empty through convergence. Independent distance, mean, cluster count and inertia calculations check each state, including a run capped before convergence.
+- Measured uncompressed FastAPI response bodies with 1,000 points, 16 clusters and seed 3. With `t = arange(1000) / 999`, points `(999999.123456789*t, -38231.2345678901*t)` reached all 100 updates. The 101-snapshot response was 356,749 bytes. With a cap of one update the same input returned 49,582 bytes. Both measurements include the dataset and final summary.
+- Full verification passed with 95 backend tests, 84 frontend tests and a TypeScript/Vite production build. Local runtimes were Python 3.11.9 and Node 25.2.0. The existing Starlette TestClient deprecation and Vite Plotly chunk-size warning remain.
+
+## Milestone 5A — 2D K-Means backend
+
+- Added the stateless K-Means route, Pydantic contracts, service and float64 Lloyd engine. The engine returns initial and final centers, nearest-center assignments and inertia at initialization and after each update.
+- The scikit-learn reference test supplies our initial centers, uses one Lloyd run and sets `tol=0`. This removes differences from scikit-learn's default k-means++ initialization and tolerance for center movement. Our convergence check uses unchanged assignments. Our engine keeps empty centers in place, whereas scikit-learn can relocate empty clusters using distant observations. The reference fixture avoids empty clusters. See the [scikit-learn KMeans reference](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html).
+- From `backend/`, `.venv/Scripts/python.exe -m pytest -q` passed all 90 tests, including 24 K-Means cases. The existing Starlette TestClient deprecation warning remains. Tests cover a hand-calculated 2D update, repeatability, ties, duplicates, empty clusters, iteration limits, very small and large coordinates, structured validation errors and the scikit-learn comparison.
+
 ## 2026-11-20 - Milestone 4B pre-commit audit
 
 - Fixed the Logistic true-intercept label targeting a hidden Linear input. Algorithm links now preserve other URL parameters, respect modified clicks and skip duplicate history entries. A local favicon resolves the 404 seen on first load.

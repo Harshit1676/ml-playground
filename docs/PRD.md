@@ -170,6 +170,18 @@ Example response for the request above:
 
 The initial API intentionally does not return coefficient/intercept history. If the future UI requires a learning-step animation, a follow-up contract can add an explicit sequence of parameter pairs for each update; it must not infer parameters from loss values. Scikit-learn's default Logistic Regression includes regularization and solver behavior that differs from this unregularized explicit gradient descent, so it is not treated as an exact step-by-step oracle. Compare only a deliberately configured converged reference if a suitable like-for-like fixture is established.
 
+## K-Means backend contract (Milestone 5A)
+
+`POST /api/v1/experiments/kmeans` accepts `dataset.kind = "points"` and an ordered `dataset.points` array of 1–1,000 unlabeled coordinate pairs. Each coordinate must be a finite JSON number in `[-1e6, 1e6]`. Required integer fields are `parameters.k` (1–16 and at most the observation count), `parameters.max_iterations` (1–100) and a uint32 `seed`. The shared 1 MiB request limit and structured validation errors apply.
+
+The seed selects observation rows without replacement. Cluster IDs are zero-based positions in that sample. Repeating the same ordered input and seed reproduces the run. Duplicate coordinates are valid. Equal distances go to the lowest cluster ID, and an empty cluster retains its previous center. The result can therefore contain fewer than `k` occupied clusters.
+
+Each iteration takes the mean of the points currently assigned to each occupied center, then assigns every point to its nearest updated center. Stable assignments mark convergence. At the iteration limit, assignments and inertia still describe the returned centers. If assignments changed on that final update, another mean update could move the centers again.
+
+The response echoes the dataset, parameters and seed. It includes `model.centroids`, per-point `assignments` in input order, `metrics.inertia`, and a `training` summary containing `initial_centroids`, `iterations_completed`, `converged`, `inertia_history` and `snapshots`. Snapshot 0 captures the sampled centroids and their nearest-point assignments. Each following snapshot contains its `iteration`, updated `centroids`, nearest-centroid `assignments` in input order, and `inertia` computed for that same state. There are at most 101 snapshots. The last snapshot supplies the final model, assignments and metric.
+
+Sampling distinct rows can select repeated coordinates even when the data contains at least `k` distinct locations. Cluster counts at any iteration are the frequencies of IDs 0 through `k-1` in that snapshot. Stable assignments can include zero counts. On the last permitted update, stable assignments give `converged: true`; changed assignments give `converged: false`.
+
 ## 8. Non-functional requirements and measurable targets
 
 Initial targets for Linear Regression V1:
