@@ -188,6 +188,18 @@ h1 em { color: var(--green); font-weight: 400; }
 .algorithm-nav { display: flex; align-items: center; gap: 7px; padding: 14px 0 0; }
 .algorithm-nav a { display: inline-flex; min-height: 35px; align-items: center; padding: 0 12px; border: 1px solid transparent; border-radius: 7px; color: #68787a; font-size: 11px; font-weight: 700; }
 .algorithm-nav a:hover { color: var(--green); background: #edf4ef; }
+.algorithm-nav { flex-wrap: wrap; }
+.km-explorer { display: grid; gap: 12px; }
+.km-explorer input[type="range"] { width: 100%; accent-color: var(--green); }
+.km-step-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.km-step-actions button { border: 1px solid var(--line); border-radius: 6px; background: white; padding: 7px 11px; font-size: 12px; }
+.km-step-actions button:disabled { opacity: .45; cursor: default; }
+.km-caption { font-size: 12px; line-height: 1.6; color: #526463; margin: 6px 0; }
+.km-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 50%; }
+.km-lab .classification-table { table-layout: fixed; overflow-wrap: anywhere; }
+.km-observations { max-height: 18rem; overflow: auto; }
+.km-lab caption { text-align: left; font-weight: 600; padding: 10px 0; }
+.km-lab h3 { font: 400 18px Georgia, serif; }
 .algorithm-nav a[aria-current="page"] { border-color: #d5e2d9; color: var(--green-dark); background: #eaf2ec; }
 .logistic-section .experiment-heading { margin-top: 8px; }
 .threshold-explorer, .confusion-card { border: 1px solid var(--line); border-radius: 13px; background: var(--paper); box-shadow: 0 12px 36px rgba(32,54,51,.035); }

@@ -145,6 +145,10 @@ Every request carries all required data and state. The backend stores no user or
 
 ### K-Means iteration playback
 
+The frontend feature under `frontend/src/features/k-means/` owns form validation, submission, errors, retry and the selected iteration. The typed client checks the echoed recipe and effective dataset, snapshot dimensions and IDs, stopping rule, and agreement of the summaries with the first and last snapshots. Repeated response fields are checked for exact agreement because the backend serializes the same values. Membership counts are a tally of returned IDs. Training, centroid updates and inertia calculations run in Python.
+
+The chart adapter builds two scatter traces for the selected snapshot and two traces for inertia history and its selected point. Axis bounds come from the effective observations and use equal spatial units. The existing Plotly Basic bundle loads on demand. A hidden K-Means lab retains its experiment and selected step in React. Its chart elements mount at the current viewport size when revealed. Individual observation rows render when the learner expands the assignment table.
+
 The service resolves inline points directly or asks `app.ml.clustered_dataset` to generate observations with a local RNG seeded by `dataset.generation_seed`. Both paths pass only the effective coordinates, fit parameters and top-level initialization seed to the same Lloyd engine. The synthetic response carries both the recipe and those coordinates for replay.
 
 The NumPy engine captures one state after initial assignment and one after each centroid update and reassignment. Each update works on a fresh centroid array so later steps preserve earlier coordinates. The service serializes these states in `training.snapshots`. The response schema checks iteration order, dimensions, ID ranges, agreement with the final summary and the stopping condition. A learner interface can render any snapshot with the single dataset returned for the experiment.
