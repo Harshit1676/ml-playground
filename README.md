@@ -222,3 +222,69 @@ Local verification commands from `frontend/` are `npm test` and `npm run build`;
 5. Try mismatched arrays, a non-binary label, out-of-range controls, and the generated single-class case; verify actionable field or structured API errors and that previous results are cleared for invalid submissions.
 6. Reset after a completed run and confirm defaults are restored and old metrics/charts disappear. Switch between algorithm labs and use browser back/forward to verify navigation state.
 7. Stop FastAPI and confirm the health and experiment failure states are clear; then use a narrow viewport around 390 px and check for horizontal overflow and JavaScript console errors.
+
+## K-Means backend (Milestone 5A)
+
+Use `training.snapshots[0]` to inspect initialization. Each subsequent entry contains the centroids, assignments and inertia after one completed update. The last entry matches the final summary.
+
+Open `/docs` on the running FastAPI service and try `POST /api/v1/experiments/k-means` with four unlabeled 2D observations.
+
+```json
+{
+  "dataset": {"kind": "points", "points": [[0, 0], [2, 4], [8, 8], [10, 12]]},
+  "parameters": {"k": 2, "max_iterations": 10},
+  "seed": 42
+}
+```
+
+For this example the sampled centers start at `[[0, 0], [10, 12]]`. After one update the centers are `[[1, 2], [9, 10]]` and the assignments are `[0, 0, 1, 1]`. Each point now contributes 5 to the sum of squared distances, so inertia falls from 40 to 20. Changing the seed explores the effect of starting from different observations. See the [K-Means contract](docs/PRD.md#k-means-backend-contract-milestone-5a) for limits and stopping rules.
+
+The complete response for this request is
+
+```json
+{
+  "algorithm": "kmeans", "seed": 42, "parameters": {"k": 2, "max_iterations": 10},
+  "dataset": {"kind": "points", "points": [[0,0],[2,4],[8,8],[10,12]]},
+  "model": {"centroids": [[1,2],[9,10]]}, "assignments": [0,0,1,1], "metrics": {"inertia": 20},
+  "training": {
+    "initial_centroids": [[0,0],[10,12]], "iterations_completed": 1, "converged": true,
+    "inertia_history": [40,20],
+    "snapshots": [
+      {"iteration": 0, "centroids": [[0,0],[10,12]], "assignments": [0,0,1,1], "inertia": 40},
+      {"iteration": 1, "centroids": [[1,2],[9,10]], "assignments": [0,0,1,1], "inertia": 20}
+    ]
+  }
+}
+```
+
+To generate points, supply a cluster recipe to the same endpoint. Each point is drawn from a square centered on a randomly selected source center. Keep `generation_seed` fixed and change the top-level `seed` to try different initial centroids on the same observations.
+
+```json
+{
+  "dataset": {"kind": "synthetic_clusters", "n_samples": 2, "centers": [[-4,2],[6,-3]], "spread": 0.25, "generation_seed": 1},
+  "parameters": {"k": 2, "max_iterations": 10},
+  "seed": 42
+}
+```
+
+This small example gives each point its own centroid. The response includes every generated observation in training order.
+
+```json
+{
+  "algorithm": "kmeans", "seed": 42, "parameters": {"k": 2, "max_iterations": 10},
+  "dataset": {
+    "kind": "synthetic_clusters", "n_samples": 2, "centers": [[-4,2],[6,-3]], "spread": 0.25, "generation_seed": 1,
+    "points": [[-3.774768151837032,1.822079806359817],[6.224324723568622,-3.094084273994757]]
+  },
+  "model": {"centroids": [[-3.774768151837032,1.822079806359817],[6.224324723568622,-3.094084273994757]]},
+  "assignments": [0,1], "metrics": {"inertia": 0},
+  "training": {
+    "initial_centroids": [[-3.774768151837032,1.822079806359817],[6.224324723568622,-3.094084273994757]],
+    "iterations_completed": 1, "converged": true, "inertia_history": [0,0],
+    "snapshots": [
+      {"iteration": 0, "centroids": [[-3.774768151837032,1.822079806359817],[6.224324723568622,-3.094084273994757]], "assignments": [0,1], "inertia": 0},
+      {"iteration": 1, "centroids": [[-3.774768151837032,1.822079806359817],[6.224324723568622,-3.094084273994757]], "assignments": [0,1], "inertia": 0}
+    ]
+  }
+}
+```

@@ -2,9 +2,11 @@ from fastapi import APIRouter
 
 from app.api.routes.experiments import router as experiments_router
 from app.api.routes.health import router as health_router
+from app.api.routes.kmeans import router as kmeans_router
 from app.api.routes.logistic_regression import router as logistic_regression_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router)
 api_router.include_router(experiments_router)
 api_router.include_router(logistic_regression_router)
+api_router.include_router(kmeans_router)
