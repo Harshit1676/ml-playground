@@ -226,6 +226,8 @@ describe('LogisticRegressionExperience', () => {
     expect(metrics()).toEqual(['50%', '50%', '50%', '50%'])
 
     fireEvent.change(inputById('exploration-threshold-slider'), { target: { value: '0.7' } })
+    expect(screen.getByText('1 of 4 predicted positive · Predictions changed from the submitted run: 1.')).toBeVisible()
+    expect(screen.queryByText(/Showing the previous settings/)).toBeNull()
     expect(predictions()).toEqual([0, 0, 0, 1])
     expect(matrix()).toEqual([2, 0, 1, 1])
     expect(metrics()).toEqual(['75%', '100%', '50%', displayPercent(2 / 3)])
@@ -295,4 +297,15 @@ describe('LogisticRegressionExperience', () => {
     unmount()
     expect(signal?.aborted).toBe(true)
   })
+})
+
+it('keeps the trained chart visible and identifies unsent training edits', async () => {
+  const fetcher = successfulFetch()
+  render(<LogisticRegressionExperience />)
+  fireEvent.click(screen.getByRole('button', { name: /run experiment/i }))
+  await screen.findByTestId('probability-chart')
+  fireEvent.change(inputById('logistic-learning-rate'), { target: { value: '' } })
+  expect(screen.getByText(/Showing the previous settings/)).toBeVisible()
+  expect(screen.getByTestId('probability-chart')).toBeVisible()
+  expect(fetcher).toHaveBeenCalledTimes(1)
 })

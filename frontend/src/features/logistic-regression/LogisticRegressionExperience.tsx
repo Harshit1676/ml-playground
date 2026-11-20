@@ -1,3 +1,4 @@
+import { SettingsFields, SettingsNotice } from '../../components/ExperimentSettings'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { LogisticRegressionApiError, LogisticRegressionNetworkError, runLogisticRegression } from '../../lib/api/logisticRegression'
@@ -7,7 +8,7 @@ import type { LogisticExperimentFormState } from './defaults'
 import { buildLogisticRegressionRequest } from './request'
 import type { LogisticFormErrors } from './request'
 import type { LogisticRegressionRequest, LogisticRegressionResponse } from './types'
-import { LogisticRegressionCharts } from './LogisticRegressionCharts'
+import { ProbabilityChart, LogisticLossChart } from './LogisticRegressionCharts'
 
 type RunState = 'idle' | 'loading' | 'success' | 'error'
 
@@ -227,65 +228,64 @@ export function LogisticRegressionExperience() {
     <section className="experiment-section logistic-section" aria-labelledby="logistic-title">
       <header className="experiment-heading">
         <div>
-          <p className="eyebrow"><span className="eyebrow-line" /> Your next model</p>
           <h1 id="logistic-title">Logistic Regression <em>Lab</em></h1>
-          <p className="experiment-intro">Learn how a model turns a feature into a probability, then explore how a threshold turns that probability into a class.</p>
+          <p className="experiment-intro">Fit a probability curve. Move the threshold to see which predictions change.</p>
         </div>
-        <div className="lesson-pill"><span aria-hidden="true">02</span><span>One feature · Two classes</span></div>
       </header>
 
       <div className="experiment-layout">
         <aside className="controls-panel" aria-label="Logistic Regression experiment settings">
           <div className="panel-heading">
-            <div><p className="section-kicker">Set up your experiment</p><h2>Choose your data</h2></div>
-            <span className="step-index">B</span>
+            <h2>Experiment settings</h2>
           </div>
 
           <form onSubmit={handleSubmit} noValidate>
-            <label className="form-field" htmlFor="logistic-dataset-kind">
-              <span className="field-label">Dataset type</span>
-              <select id="logistic-dataset-kind" value={form.datasetKind} onChange={(event) => changeForm('datasetKind', event.target.value as LogisticExperimentFormState['datasetKind'])}>
-                <option value="synthetic_logistic">Seeded synthetic data</option>
-                <option value="points">Edit binary observations</option>
-              </select>
-            </label>
-
-            {form.datasetKind === 'synthetic_logistic' ? (
-              <FieldGroup title="Data recipe" description="The service samples features and draws labels from the configured sigmoid probabilities.">
-                <RangeField id="logistic-sample-count" label="Sample count" value={form.nSamples} onChange={(value) => changeForm('nSamples', value)} error={fieldErrors.nSamples} minimum={2} maximum={1000} rangeStep={1} step="1" min={2} max={1000} />
-                <NumberField id="true-coefficient" label="True coefficient" value={form.trueCoefficient} onChange={(value) => changeForm('trueCoefficient', value)} error={fieldErrors.trueCoefficient} hint="Controls how the true probability changes with x." min={-1_000_000} max={1_000_000} />
-                <NumberField id="logistic-true-intercept" label="True intercept" value={form.trueIntercept} onChange={(value) => changeForm('trueIntercept', value)} error={fieldErrors.trueIntercept} hint="Sets the true log-odds when x is zero." min={-1_000_000} max={1_000_000} />
-                <NumberField id="logistic-feature-min" label="Feature minimum" value={form.xMin} onChange={(value) => changeForm('xMin', value)} error={fieldErrors.xMin} min={-1_000_000} max={1_000_000} />
-                <NumberField id="logistic-feature-max" label="Feature maximum" value={form.xMax} onChange={(value) => changeForm('xMax', value)} error={fieldErrors.xMax} min={-1_000_000} max={1_000_000} />
-                <NumberField id="logistic-random-seed" label="Random seed" value={form.seed} onChange={(value) => changeForm('seed', value)} error={fieldErrors.seed} hint="Reuse a seed to reproduce the generated sample." step="1" min={0} max={4_294_967_295} />
-              </FieldGroup>
-            ) : (
-              <FieldGroup title="Your observations" description="Enter one feature value and one binary label (0 or 1) per observation.">
-                <label className="form-field full-width" htmlFor="logistic-inline-x">
-                  <span className="field-label">Feature values · x</span>
-                  <textarea id="logistic-inline-x" rows={3} value={form.inlineX} onChange={(event) => changeForm('inlineX', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineX)} aria-describedby={fieldErrors.inlineX ? 'logistic-inline-x-error' : undefined} />
-                  {fieldErrors.inlineX && <span id="logistic-inline-x-error" className="field-error">{fieldErrors.inlineX}</span>}
-                </label>
-                <label className="form-field full-width" htmlFor="logistic-inline-y">
-                  <span className="field-label">Binary labels · y</span>
-                  <textarea id="logistic-inline-y" rows={3} value={form.inlineY} onChange={(event) => changeForm('inlineY', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineY)} aria-describedby={fieldErrors.inlineY ? 'logistic-inline-y-error' : undefined} />
-                  {fieldErrors.inlineY && <span id="logistic-inline-y-error" className="field-error">{fieldErrors.inlineY}</span>}
-                </label>
-              </FieldGroup>
-            )}
-
-            <FieldGroup title="Training settings" description="Choose a starting boundary and how many batch updates to run.">
-              <NumberField id="initial-coefficient" label="Initial coefficient" value={form.initialCoefficient} onChange={(value) => changeForm('initialCoefficient', value)} error={fieldErrors.initialCoefficient} min={-1_000_000} max={1_000_000} />
-              <NumberField id="initial-logistic-intercept" label="Initial intercept" value={form.initialIntercept} onChange={(value) => changeForm('initialIntercept', value)} error={fieldErrors.initialIntercept} min={-1_000_000} max={1_000_000} />
-              <NumberField id="logistic-learning-rate" label="Learning rate" value={form.learningRate} onChange={(value) => changeForm('learningRate', value)} error={fieldErrors.learningRate} hint="Must be greater than 0 and at most 1." min={0} max={1} />
-              <RangeField id="logistic-training-steps" label="Training updates" value={form.steps} onChange={(value) => changeForm('steps', value)} error={fieldErrors.steps} hint="Loss history includes step 0 plus each update." minimum={0} maximum={500} rangeStep={1} step="1" min={0} max={500} />
-              <RangeField id="submitted-threshold" label="Threshold sent to backend" value={form.threshold} onChange={(value) => changeForm('threshold', value)} error={fieldErrors.threshold} hint="Class 1 when probability is greater than or equal to this value." minimum={0} maximum={1} rangeStep={0.01} step="any" min={0} max={1} />
-            </FieldGroup>
-
             <div className="form-actions">
               <button className="run-button" type="submit">{runState === 'loading' ? <><span className="button-spinner" aria-hidden="true" /> Running experiment</> : <>Run experiment <span aria-hidden="true">↗</span></>}</button>
               <button className="reset-button" type="button" onClick={resetDefaults}>Reset to defaults</button>
             </div>
+            <SettingsFields running={runState === 'loading'} errors={fieldErrors}>
+              <label className="form-field" htmlFor="logistic-dataset-kind">
+                <span className="field-label">Dataset type</span>
+                <select id="logistic-dataset-kind" value={form.datasetKind} onChange={(event) => changeForm('datasetKind', event.target.value as LogisticExperimentFormState['datasetKind'])}>
+                  <option value="synthetic_logistic">Seeded synthetic data</option>
+                  <option value="points">Edit binary observations</option>
+                </select>
+              </label>
+
+              {form.datasetKind === 'synthetic_logistic' ? (
+                <FieldGroup title="Data recipe" description="The service samples features and draws labels from the configured sigmoid probabilities.">
+                  <RangeField id="logistic-sample-count" label="Sample count" value={form.nSamples} onChange={(value) => changeForm('nSamples', value)} error={fieldErrors.nSamples} minimum={2} maximum={1000} rangeStep={1} step="1" min={2} max={1000} />
+                  <NumberField id="true-coefficient" label="True coefficient" value={form.trueCoefficient} onChange={(value) => changeForm('trueCoefficient', value)} error={fieldErrors.trueCoefficient} hint="Controls how the true probability changes with x." min={-1_000_000} max={1_000_000} />
+                  <NumberField id="logistic-true-intercept" label="True intercept" value={form.trueIntercept} onChange={(value) => changeForm('trueIntercept', value)} error={fieldErrors.trueIntercept} hint="Sets the true log-odds when x is zero." min={-1_000_000} max={1_000_000} />
+                  <NumberField id="logistic-feature-min" label="Feature minimum" value={form.xMin} onChange={(value) => changeForm('xMin', value)} error={fieldErrors.xMin} min={-1_000_000} max={1_000_000} />
+                  <NumberField id="logistic-feature-max" label="Feature maximum" value={form.xMax} onChange={(value) => changeForm('xMax', value)} error={fieldErrors.xMax} min={-1_000_000} max={1_000_000} />
+                  <NumberField id="logistic-random-seed" label="Random seed" value={form.seed} onChange={(value) => changeForm('seed', value)} error={fieldErrors.seed} hint="Reuse a seed to reproduce the generated sample." step="1" min={0} max={4_294_967_295} />
+                </FieldGroup>
+              ) : (
+                <FieldGroup title="Your observations" description="Enter one feature value and one binary label (0 or 1) per observation.">
+                  <label className="form-field full-width" htmlFor="logistic-inline-x">
+                    <span className="field-label">Feature values · x</span>
+                    <textarea id="logistic-inline-x" rows={3} value={form.inlineX} onChange={(event) => changeForm('inlineX', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineX)} aria-describedby={fieldErrors.inlineX ? 'logistic-inline-x-error' : undefined} />
+                    {fieldErrors.inlineX && <span id="logistic-inline-x-error" className="field-error">{fieldErrors.inlineX}</span>}
+                  </label>
+                  <label className="form-field full-width" htmlFor="logistic-inline-y">
+                    <span className="field-label">Binary labels · y</span>
+                    <textarea id="logistic-inline-y" rows={3} value={form.inlineY} onChange={(event) => changeForm('inlineY', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineY)} aria-describedby={fieldErrors.inlineY ? 'logistic-inline-y-error' : undefined} />
+                    {fieldErrors.inlineY && <span id="logistic-inline-y-error" className="field-error">{fieldErrors.inlineY}</span>}
+                  </label>
+                </FieldGroup>
+              )}
+
+              <FieldGroup title="Training settings" description="Choose a starting boundary and how many batch updates to run.">
+                <NumberField id="initial-coefficient" label="Initial coefficient" value={form.initialCoefficient} onChange={(value) => changeForm('initialCoefficient', value)} error={fieldErrors.initialCoefficient} min={-1_000_000} max={1_000_000} />
+                <NumberField id="initial-logistic-intercept" label="Initial intercept" value={form.initialIntercept} onChange={(value) => changeForm('initialIntercept', value)} error={fieldErrors.initialIntercept} min={-1_000_000} max={1_000_000} />
+                <NumberField id="logistic-learning-rate" label="Learning rate" value={form.learningRate} onChange={(value) => changeForm('learningRate', value)} error={fieldErrors.learningRate} hint="Must be greater than 0 and at most 1." min={0} max={1} />
+                <RangeField id="logistic-training-steps" label="Training updates" value={form.steps} onChange={(value) => changeForm('steps', value)} error={fieldErrors.steps} hint="Loss history includes step 0 plus each update." minimum={0} maximum={500} rangeStep={1} step="1" min={0} max={500} />
+                <RangeField id="submitted-threshold" label="Threshold sent to backend" value={form.threshold} onChange={(value) => changeForm('threshold', value)} error={fieldErrors.threshold} hint="Class 1 when probability is greater than or equal to this value." minimum={0} maximum={1} rangeStep={0.01} step="any" min={0} max={1} />
+              </FieldGroup>
+
+            </SettingsFields>
           </form>
         </aside>
 
@@ -305,21 +305,21 @@ export function LogisticRegressionExperience() {
 
           {response && thresholdMetrics ? (
             <>
+              <SettingsNotice submitted={completedRun.request} draft={buildLogisticRegressionRequest(form).request} />
               <section className="results-heading" aria-labelledby="logistic-results-title">
                 <div>
-                  <p className="section-kicker">Your result</p>
                   <h2 id="logistic-results-title">Probabilities become classes</h2>
-                  <p>The model probabilities and BCE remain fixed while you explore a different classification threshold.</p>
                   {completedRun?.request.dataset.kind === 'points' && <p className="result-context">Manually entered observations</p>}
                 </div>
                 {completedRun?.request.dataset.kind === 'synthetic_logistic' && <span className="result-seed">Seed {response.seed}</span>}
               </section>
 
+              <ProbabilityChart response={response} threshold={explorationThreshold} predictedClasses={thresholdMetrics.predictedClasses} />
               <div className="threshold-explorer" aria-labelledby="threshold-explorer-title">
                 <div className="threshold-explorer-copy">
-                  <p className="section-kicker">Explore without retraining</p>
                   <h3 id="threshold-explorer-title">Move the classification threshold</h3>
                   <p>Submitted threshold: {response.threshold} · Exploring now: <strong aria-live="polite">{explorationThreshold}</strong></p>
+                  <p className="decision-count" aria-live="polite">{thresholdMetrics.confusionMatrix.true_positive + thresholdMetrics.confusionMatrix.false_positive} of {response.dataset.x.length} predicted positive · Predictions changed from the submitted run: {thresholdMetrics.predictedClasses.filter((label, i) => label !== response.predictions.predicted_classes[i]).length}.</p>
                 </div>
                 <div className="threshold-explorer-controls">
                   <label className="visually-hidden" htmlFor="exploration-threshold-slider">Explore classification threshold slider</label>
@@ -331,17 +331,6 @@ export function LogisticRegressionExperience() {
                   {explorationError && <span className="field-error" id="exploration-threshold-error">{explorationError}</span>}
                 </div>
               </div>
-
-              <section className="metric-grid logistic-metric-grid" aria-label="Classification and training results" aria-live="polite">
-                <MetricCard label="Coefficient" value={formatMetric(response.model.coefficient)} explanation="How x changes the model's log-odds." />
-                <MetricCard label="Intercept" value={formatMetric(response.model.intercept)} explanation="The model's log-odds when x is zero." />
-                <MetricCard label="Binary cross-entropy" value={formatMetric(response.metrics.binary_cross_entropy)} explanation="Training loss from the backend response." />
-                <MetricCard label="Accuracy" value={formatPercent(thresholdMetrics.accuracy)} explanation="Share of observations classified correctly." />
-                <MetricCard label="Precision" value={formatPercent(thresholdMetrics.precision)} explanation="Of predicted positives, the share that are positive." />
-                <MetricCard label="Recall" value={formatPercent(thresholdMetrics.recall)} explanation="Of actual positives, the share found by the model." />
-                <MetricCard label="F1" value={formatPercent(thresholdMetrics.f1)} explanation="Balance between precision and recall." />
-                <MetricCard label="Training updates" value={String(response.training.steps_completed)} explanation="Batch gradient steps completed by the backend." />
-              </section>
 
               <section className="confusion-card" aria-labelledby="confusion-title">
                 <div className="confusion-heading">
@@ -369,15 +358,26 @@ export function LogisticRegressionExperience() {
                 )}
               </section>
 
+              <section className="metric-grid logistic-metric-grid" aria-label="Classification and training results" aria-live="polite">
+                <MetricCard label="Coefficient" value={formatMetric(response.model.coefficient)} explanation="How x changes the model's log-odds." />
+                <MetricCard label="Intercept" value={formatMetric(response.model.intercept)} explanation="The model's log-odds when x is zero." />
+                <MetricCard label="Binary cross-entropy" value={formatMetric(response.metrics.binary_cross_entropy)} explanation="Training loss from the backend response." />
+                <MetricCard label="Accuracy" value={formatPercent(thresholdMetrics.accuracy)} explanation="Share of observations classified correctly." />
+                <MetricCard label="Precision" value={formatPercent(thresholdMetrics.precision)} explanation="Of predicted positives, the share that are positive." />
+                <MetricCard label="Recall" value={formatPercent(thresholdMetrics.recall)} explanation="Of actual positives, the share found by the model." />
+                <MetricCard label="F1" value={formatPercent(thresholdMetrics.f1)} explanation="Balance between precision and recall." />
+                <MetricCard label="Training updates" value={String(response.training.steps_completed)} explanation="Batch gradient steps completed by the backend." />
+              </section>
+
               <section className="explanation-card" aria-labelledby="logistic-reading-title">
                 <span className="explanation-mark" aria-hidden="true">i</span>
                 <div>
                   <h3 id="logistic-reading-title">Probability is not the predicted class</h3>
-                  <p>The sigmoid maps the score <strong>z = coefficient × x + intercept</strong> to a probability between 0 and 1. The threshold then turns that probability into class 0 or 1. Moving the threshold changes these labels and their metrics; it does not change the learned model, probabilities, BCE, or training history. Accuracy is only one view of classification quality, so compare it with precision and recall.</p>
+                  <p>The sigmoid maps the score <strong>z = coefficient × x + intercept</strong> to a probability between 0 and 1. The threshold then turns that probability into class 0 or 1. Moving the threshold changes predicted classes and their metrics. The observed labels, fitted model, probabilities, and training loss stay fixed. Accuracy is only one view of classification quality, so compare it with precision and recall.</p>
                 </div>
               </section>
 
-              <LogisticRegressionCharts response={response} threshold={explorationThreshold} predictedClasses={thresholdMetrics.predictedClasses} />
+              <LogisticLossChart response={response} />
 
               <details className="classification-details">
                 <summary>Show predicted labels for {response.dataset.x.length} observations</summary>

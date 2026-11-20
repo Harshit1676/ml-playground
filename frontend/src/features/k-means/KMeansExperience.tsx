@@ -1,3 +1,4 @@
+import { SettingsFields, SettingsNotice } from '../../components/ExperimentSettings'
 import { useEffect, useRef, useState } from 'react'
 import { ExperimentError, runKMeans } from '../../lib/api/kmeans'
 import { IterationExplorer } from './IterationExplorer'
@@ -59,10 +60,10 @@ export function KMeansExperience({ visible }: { visible: boolean }) {
   }
   return <section className="experiment-section km-lab" aria-labelledby="km-title">
     <header className="experiment-heading"><div><h1 id="km-title">K-Means <em>Lab</em></h1>
-      <p className="experiment-intro">Group unlabeled points by distance. Follow each centroid from its starting observation to its final position.</p>
+      <p className="experiment-intro">Step through a run to see how centroids move and points change clusters.</p>
     </div></header>
     <div className="experiment-layout">
-      <aside className="controls-panel"><div className="panel-heading"><h2>Choose your data</h2></div>
+      <aside className="controls-panel" aria-label="Clustering settings"><div className="panel-heading"><h2>Experiment settings</h2></div>
         <form noValidate onSubmit={e => {
           e.preventDefault()
           const built = buildRequest(form)
@@ -70,25 +71,28 @@ export function KMeansExperience({ visible }: { visible: boolean }) {
           if (built.request) void execute(built.request)
           else clearRun()
         }}>
-          <div className="form-field"><label className="field-label" htmlFor="km-kind">Dataset type</label>
-            <select id="km-kind" value={form.kind} onChange={e => { setForm({ ...form, kind: e.target.value as Form['kind'] }); setErrors({}) }}>
-              <option value="synthetic_clusters">Seeded synthetic clusters</option><option value="points">Inline observations</option>
-            </select></div>
-          <fieldset className="control-group"><legend>{form.kind === 'points' ? 'Your observations' : 'Source clusters'}</legend>
-            <p className="group-description">{form.kind === 'points' ? 'Enter one x,y pair per line. Repeated points are allowed.'
-              : 'Enter one x,y source center per line. Each observation chooses a center at random and adds independent uniform offsets on each axis. K-Means learns its own centroids.'}</p>
-            <div className="field-grid">{form.kind === 'points' ? field('points', 'Observation pairs', 1, 1000) : <>
-              {field('centers', 'Source center pairs', 1, 16)}{field('samples', 'Observations', 1, 1000)}
-              {field('spread', 'Spread per axis', 0, 1e6, 'any')}{field('generationSeed', 'Generation seed', 0, 4294967295)}
-            </>}</div></fieldset>
-          <fieldset className="control-group"><legend>Fit the clusters</legend>
-            <p className="group-description">Change the initialization seed to try new starting centroids on the same observations.
-              {form.kind === 'synthetic_clusters' && ' Change the generation seed to draw a new dataset.'}</p>
-            <div className="field-grid">{field('k', 'Fitted clusters (k)', 1, 16)}
-              {field('iterations', 'Maximum iterations', 1, 100)}{field('seed', 'Initialization seed', 0, 4294967295)}</div>
-          </fieldset>
-          <div className="form-actions"><button className="run-button" type="submit">Run experiment</button>
+          <div className="form-actions">
+            <button className="run-button" type="submit">Run experiment</button>
             <button className="reset-button" type="button" onClick={() => { clearRun(); setForm(defaults); setErrors({}) }}>Reset to defaults</button></div>
+          <SettingsFields running={pending} errors={errors}>
+            <div className="form-field"><label className="field-label" htmlFor="km-kind">Dataset type</label>
+              <select id="km-kind" value={form.kind} onChange={e => { setForm({ ...form, kind: e.target.value as Form['kind'] }); setErrors({}) }}>
+                <option value="synthetic_clusters">Seeded synthetic clusters</option><option value="points">Inline observations</option>
+              </select></div>
+            <fieldset className="control-group"><legend>{form.kind === 'points' ? 'Your observations' : 'Source clusters'}</legend>
+              <p className="group-description">{form.kind === 'points' ? 'Enter one x,y pair per line. Repeated points are allowed.'
+                : 'Enter one x,y source center per line. Each observation chooses a center at random and adds independent uniform offsets on each axis. K-Means learns its own centroids.'}</p>
+              <div className="field-grid">{form.kind === 'points' ? field('points', 'Observation pairs', 1, 1000) : <>
+                {field('centers', 'Source center pairs', 1, 16)}{field('samples', 'Observations', 1, 1000)}
+                {field('spread', 'Spread per axis', 0, 1e6, 'any')}{field('generationSeed', 'Generation seed', 0, 4294967295)}
+              </>}</div></fieldset>
+            <fieldset className="control-group"><legend>Fit the clusters</legend>
+              <p className="group-description">Change the initialization seed to try new starting centroids on the same observations.
+                {form.kind === 'synthetic_clusters' && ' Change the generation seed to draw a new dataset.'}</p>
+              <div className="field-grid">{field('k', 'Fitted clusters (k)', 1, 16)}
+                {field('iterations', 'Maximum iterations', 1, 100)}{field('seed', 'Initialization seed', 0, 4294967295)}</div>
+            </fieldset>
+          </SettingsFields>
         </form>
       </aside>
       <div className="results-column">
@@ -96,6 +100,7 @@ export function KMeansExperience({ visible }: { visible: boolean }) {
         {Object.values(errors).some(Boolean) && <p role="alert" className="experiment-error">Check the highlighted experiment settings.</p>}
         {failure && <div className="experiment-error" role="alert"><div><strong>{failure.code}</strong><p>{failure.message}</p>
           {failure.retryable && <button className="retry-button" onClick={() => last.current && void execute(last.current)}>Retry request</button>}</div></div>}
+        {result && last.current && <SettingsNotice submitted={last.current} draft={buildRequest(form).request} />}
         {result ? <IterationExplorer key={runNumber} run={result} visible={visible} /> : !pending && !failure && <section className="empty-result"><h2>Explore centroid movement</h2>
           <p>Run the experiment to compare the initial grouping with each update and inspect how the distances change.</p></section>}
       </div>

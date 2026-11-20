@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout, PlotMouseEvent } from 'plotly.js-dist-min'
 
 const PlotlyFigureImpl = lazy(() => import('./PlotlyFigureImpl'))
 
 export interface PlotlyFigureProps {
+  onClick?: (event: PlotMouseEvent) => void
   data: Data[]
   layout: Partial<Layout>
   label: string

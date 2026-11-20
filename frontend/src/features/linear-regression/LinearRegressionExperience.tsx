@@ -1,3 +1,4 @@
+import { SettingsFields, SettingsNotice } from '../../components/ExperimentSettings'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { LinearRegressionApiError, LinearRegressionNetworkError, runLinearRegression } from '../../lib/api/linearRegression'
@@ -6,7 +7,14 @@ import type { ExperimentFormState } from './defaults'
 import { buildLinearRegressionRequest } from './request'
 import type { FormErrors } from './request'
 import type { LinearRegressionRequest, LinearRegressionResponse } from './types'
-import { RegressionCharts } from './RegressionCharts'
+import { RegressionChart, LossChart } from './RegressionCharts'
+
+// Each recipe changes only the data and its seed. Training settings stay editable.
+const datasetPresets = [
+  { label: 'Clean rising line', dataset: { datasetKind: 'synthetic_linear', trueSlope: '2', trueIntercept: '1', noiseStd: '0' } },
+  { label: 'Noisy downward line', dataset: { datasetKind: 'synthetic_linear', trueSlope: '-1.5', trueIntercept: '2', noiseStd: '2.5' } },
+  { label: 'One outlier', dataset: { datasetKind: 'points', inlineX: '-3, -2, -1, 0, 1, 2, 3', inlineY: '-5, -3, -1, 1, 3, 12, 7' } },
+] as const
 
 type RunState = 'idle' | 'loading' | 'success' | 'error'
 
@@ -228,76 +236,81 @@ export function LinearRegressionExperience() {
     <section className="experiment-section" aria-labelledby="experiment-title">
       <header className="experiment-heading">
         <div>
-          <p className="eyebrow"><span className="eyebrow-line" /> Your first model</p>
           <h1 id="experiment-title">Linear Regression <em>Lab</em></h1>
-          <p className="experiment-intro">Explore how a straight line learns from examples. Adjust the data and training settings, run the experiment, and see the returned model and error.</p>
+          <p className="experiment-intro">Fit a line to a dataset, then select a point to explore its prediction error.</p>
         </div>
-        <div className="lesson-pill"><span aria-hidden="true">01</span><span>One feature · One target</span></div>
       </header>
 
       <div className="experiment-layout">
         <aside className="controls-panel" aria-label="Experiment settings">
           <div className="panel-heading">
-            <div>
-              <p className="section-kicker">Set up your experiment</p>
-              <h2>Choose your data</h2>
-            </div>
-            <span className="step-index">A</span>
+            <h2>Experiment settings</h2>
           </div>
 
           <form onSubmit={handleSubmit} noValidate>
-            <label className="form-field" htmlFor="dataset-kind">
-              <span className="field-label">Dataset type</span>
-              <select
-                id="dataset-kind"
-                value={form.datasetKind}
-                onChange={(event) => changeForm('datasetKind', event.target.value as ExperimentFormState['datasetKind'])}
-              >
-                <option value="synthetic_linear">Seeded synthetic data</option>
-                <option value="points">Edit points directly</option>
-              </select>
-            </label>
-
-            {form.datasetKind === 'synthetic_linear' ? (
-              <>
-                <FieldGroup title="Data recipe" description="Choose the line that generated the examples. The backend creates the seeded dataset.">
-                  <SliderField id="sample-count" label="Sample count" value={form.nSamples} onChange={(value) => changeForm('nSamples', value)} error={fieldErrors.nSamples} minimum={2} maximum={1000} rangeStep={1} step="1" />
-                  <NumericField id="true-slope" label="True slope" value={form.trueSlope} onChange={(value) => changeForm('trueSlope', value)} error={fieldErrors.trueSlope} hint="How quickly y changes as x increases." />
-                  <NumericField id="true-intercept" label="True intercept" value={form.trueIntercept} onChange={(value) => changeForm('trueIntercept', value)} error={fieldErrors.trueIntercept} hint="The target value when x is zero." />
-                  <SliderField id="noise-std" label="Noise level" value={form.noiseStd} onChange={(value) => changeForm('noiseStd', value)} error={fieldErrors.noiseStd} hint="Standard deviation of the added noise." minimum={0} maximum={1000} rangeStep={0.1} step="any" />
-                  <NumericField id="feature-min" label="Feature minimum" value={form.xMin} onChange={(value) => changeForm('xMin', value)} error={fieldErrors.xMin} />
-                  <NumericField id="feature-max" label="Feature maximum" value={form.xMax} onChange={(value) => changeForm('xMax', value)} error={fieldErrors.xMax} />
-                  <NumericField id="random-seed" label="Random seed" value={form.seed} onChange={(value) => changeForm('seed', value)} error={fieldErrors.seed} hint="Reuse a seed to reproduce this dataset." step="1" />
-                </FieldGroup>
-              </>
-            ) : (
-              <FieldGroup title="Your observations" description="Enter comma-separated x values and matching continuous y targets.">
-                <label className="form-field full-width" htmlFor="inline-x">
-                  <span className="field-label">Feature values · x</span>
-                  <textarea id="inline-x" rows={3} value={form.inlineX} onChange={(event) => changeForm('inlineX', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineX)} aria-describedby={fieldErrors.inlineX ? 'inline-x-error' : undefined} />
-                  {fieldErrors.inlineX && <span id="inline-x-error" className="field-error">{fieldErrors.inlineX}</span>}
-                </label>
-                <label className="form-field full-width" htmlFor="inline-y">
-                  <span className="field-label">Target values · y</span>
-                  <textarea id="inline-y" rows={3} value={form.inlineY} onChange={(event) => changeForm('inlineY', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineY)} aria-describedby={fieldErrors.inlineY ? 'inline-y-error' : undefined} />
-                  {fieldErrors.inlineY && <span id="inline-y-error" className="field-error">{fieldErrors.inlineY}</span>}
-                </label>
-              </FieldGroup>
-            )}
-
-            <FieldGroup title="Training settings" description="Start a line and choose how large each learning step should be.">
-              <NumericField id="initial-slope" label="Initial slope" value={form.initialSlope} onChange={(value) => changeForm('initialSlope', value)} error={fieldErrors.initialSlope} />
-              <NumericField id="initial-intercept" label="Initial intercept" value={form.initialIntercept} onChange={(value) => changeForm('initialIntercept', value)} error={fieldErrors.initialIntercept} />
-              <NumericField id="learning-rate" label="Learning rate" value={form.learningRate} onChange={(value) => changeForm('learningRate', value)} error={fieldErrors.learningRate} hint="Must be greater than 0 and at most 1." />
-              <SliderField id="training-steps" label="Training steps" value={form.steps} onChange={(value) => changeForm('steps', value)} error={fieldErrors.steps} hint="Each step is one batch parameter update." minimum={0} maximum={500} rangeStep={1} step="1" />
-            </FieldGroup>
-
             <div className="form-actions">
               <button className="run-button" type="submit">
                 {runState === 'loading' ? <><span className="button-spinner" aria-hidden="true" /> Run updated settings</> : <>Run experiment <span aria-hidden="true">↗</span></>}
               </button>
               <button className="reset-button" type="button" onClick={resetDefaults}>Reset to defaults</button>
             </div>
+            <SettingsFields running={runState === 'loading'} errors={fieldErrors}>
+              <fieldset className="preset-group">
+                <legend>Try a dataset</legend>
+                <div className="preset-buttons">{datasetPresets.map(preset => (
+                  <button type="button" key={preset.label} onClick={() => {
+                    setForm(current => ({ ...current, nSamples: DEFAULT_FORM.nSamples, xMin: DEFAULT_FORM.xMin, xMax: DEFAULT_FORM.xMax, seed: DEFAULT_FORM.seed, ...preset.dataset }))
+                    setFieldErrors({})
+                  }}>{preset.label}</button>
+                ))}</div>
+              </fieldset>
+              <label className="form-field" htmlFor="dataset-kind">
+                <span className="field-label">Dataset type</span>
+                <select
+                  id="dataset-kind"
+                  value={form.datasetKind}
+                  onChange={(event) => changeForm('datasetKind', event.target.value as ExperimentFormState['datasetKind'])}
+                >
+                  <option value="synthetic_linear">Seeded synthetic data</option>
+                  <option value="points">Edit points directly</option>
+                </select>
+              </label>
+
+              {form.datasetKind === 'synthetic_linear' ? (
+                <>
+                  <FieldGroup title="Data recipe" description="Choose the line that generated the examples. The backend creates the seeded dataset.">
+                    <SliderField id="sample-count" label="Sample count" value={form.nSamples} onChange={(value) => changeForm('nSamples', value)} error={fieldErrors.nSamples} minimum={2} maximum={1000} rangeStep={1} step="1" />
+                    <NumericField id="true-slope" label="True slope" value={form.trueSlope} onChange={(value) => changeForm('trueSlope', value)} error={fieldErrors.trueSlope} hint="How quickly y changes as x increases." />
+                    <NumericField id="true-intercept" label="True intercept" value={form.trueIntercept} onChange={(value) => changeForm('trueIntercept', value)} error={fieldErrors.trueIntercept} hint="The target value when x is zero." />
+                    <SliderField id="noise-std" label="Noise level" value={form.noiseStd} onChange={(value) => changeForm('noiseStd', value)} error={fieldErrors.noiseStd} hint="Standard deviation of the added noise." minimum={0} maximum={1000} rangeStep={0.1} step="any" />
+                    <NumericField id="feature-min" label="Feature minimum" value={form.xMin} onChange={(value) => changeForm('xMin', value)} error={fieldErrors.xMin} />
+                    <NumericField id="feature-max" label="Feature maximum" value={form.xMax} onChange={(value) => changeForm('xMax', value)} error={fieldErrors.xMax} />
+                    <NumericField id="random-seed" label="Random seed" value={form.seed} onChange={(value) => changeForm('seed', value)} error={fieldErrors.seed} hint="Reuse a seed to reproduce this dataset." step="1" />
+                  </FieldGroup>
+                </>
+              ) : (
+                <FieldGroup title="Your observations" description="Enter comma-separated x values and matching continuous y targets.">
+                  <label className="form-field full-width" htmlFor="inline-x">
+                    <span className="field-label">Feature values · x</span>
+                    <textarea id="inline-x" rows={3} value={form.inlineX} onChange={(event) => changeForm('inlineX', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineX)} aria-describedby={fieldErrors.inlineX ? 'inline-x-error' : undefined} />
+                    {fieldErrors.inlineX && <span id="inline-x-error" className="field-error">{fieldErrors.inlineX}</span>}
+                  </label>
+                  <label className="form-field full-width" htmlFor="inline-y">
+                    <span className="field-label">Target values · y</span>
+                    <textarea id="inline-y" rows={3} value={form.inlineY} onChange={(event) => changeForm('inlineY', event.target.value)} aria-invalid={Boolean(fieldErrors.inlineY)} aria-describedby={fieldErrors.inlineY ? 'inline-y-error' : undefined} />
+                    {fieldErrors.inlineY && <span id="inline-y-error" className="field-error">{fieldErrors.inlineY}</span>}
+                  </label>
+                </FieldGroup>
+              )}
+
+              <FieldGroup title="Training settings" description="Start a line and choose how large each learning step should be.">
+                <NumericField id="initial-slope" label="Initial slope" value={form.initialSlope} onChange={(value) => changeForm('initialSlope', value)} error={fieldErrors.initialSlope} />
+                <NumericField id="initial-intercept" label="Initial intercept" value={form.initialIntercept} onChange={(value) => changeForm('initialIntercept', value)} error={fieldErrors.initialIntercept} />
+                <NumericField id="learning-rate" label="Learning rate" value={form.learningRate} onChange={(value) => changeForm('learningRate', value)} error={fieldErrors.learningRate} hint="Must be greater than 0 and at most 1." />
+                <SliderField id="training-steps" label="Training steps" value={form.steps} onChange={(value) => changeForm('steps', value)} error={fieldErrors.steps} hint="Each step is one batch parameter update." minimum={0} maximum={500} rangeStep={1} step="1" />
+              </FieldGroup>
+
+            </SettingsFields>
           </form>
         </aside>
 
@@ -317,18 +330,17 @@ export function LinearRegressionExperience() {
 
           {values ? (
             <>
+              <SettingsNotice submitted={completedRun.request} draft={buildLinearRegressionRequest(form).request} />
               <section className="results-heading" aria-labelledby="results-title">
                 <div>
-                  <p className="section-kicker">Your result</p>
                   <h2 id="results-title">The model learned a line</h2>
-                  <p>These values and charts come from the response to this exact experiment.</p>
-                  <p className="result-context">Edit a setting and run again to refresh this result.</p>
                 </div>
                 {completedRun.request.dataset.kind === 'synthetic_linear' && (
                   <span className="result-seed">Seed {values.seed}</span>
                 )}
               </section>
 
+              <RegressionChart response={values} />
               <div className="metric-grid" aria-label="Final model results">
                 <ResultMetric label="Slope" value={formatMetric(values.model.slope)} explanation="Prediction change for a +1 step in x." />
                 <ResultMetric label="Intercept" value={formatMetric(values.model.intercept)} explanation="Predicted y when x equals zero." />
@@ -340,11 +352,11 @@ export function LinearRegressionExperience() {
                 <span className="explanation-mark" aria-hidden="true">i</span>
                 <div>
                   <h3 id="explanation-title">Reading the result</h3>
-                  <p>The fitted rule is <strong>ŷ = {formatMetric(values.model.slope, 3)}x {values.model.intercept < 0 ? '−' : '+'} {formatMetric(Math.abs(values.model.intercept), 3)}</strong>. For each one-unit increase in x, this line changes its prediction by about {formatMetric(values.model.slope, 3)}. MSE measures the average squared distance from the observed targets to the fitted line; smaller values mean a closer fit for this dataset.</p>
+                  <p>The fitted rule is <strong>ŷ = {formatMetric(values.model.slope, 3)}x {values.model.intercept < 0 ? '−' : '+'} {formatMetric(Math.abs(values.model.intercept), 3)}</strong>. For each one-unit increase in x, this line changes its prediction by about {formatMetric(values.model.slope, 3)}. MSE averages the squared residuals across all observations.</p>
                 </div>
               </section>
 
-              <RegressionCharts response={values} />
+              <LossChart response={values} />
             </>
           ) : runState === 'loading' ? (
             <section className="empty-result loading-result" aria-label="Experiment is running">
