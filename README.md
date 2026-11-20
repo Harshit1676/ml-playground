@@ -97,7 +97,7 @@ These instructions describe the deployment contract, not a provider-specific rel
 
 ## Important files and dependencies
 
-- `frontend/src/App.tsx` provides query-string navigation between the Linear and Logistic Regression labs and reports backend loading/connected/failed states.
+- `frontend/src/App.tsx` provides query-string navigation between the Linear Regression, Logistic Regression and K-Means labs and reports backend loading/connected/failed states.
 - `frontend/src/lib/api/health.ts` provides the typed health client, validates the response shape, and uses `VITE_API_BASE_URL` (defaulting to `http://localhost:8000`).
 - `frontend/src/styles.css` imports Tailwind CSS and contains responsive experiment controls, results, and chart styling.
 - `frontend/vite.config.ts` configures the React and Tailwind Vite plugins and Vitest's jsdom environment.
@@ -225,6 +225,8 @@ Local verification commands from `frontend/` are `npm test` and `npm run build`;
 
 ## K-Means backend (Milestone 5A)
 
+For the interactive frontend and manual checks, see [K-Means learning experience](#k-means-learning-experience-milestone-5b).
+
 Use `training.snapshots[0]` to inspect initialization. Each subsequent entry contains the centroids, assignments and inertia after one completed update. The last entry matches the final summary.
 
 Open `/docs` on the running FastAPI service and try `POST /api/v1/experiments/k-means` with four unlabeled 2D observations.
@@ -288,3 +290,19 @@ This small example gives each point its own centroid. The response includes ever
   }
 }
 ```
+
+## K-Means learning experience (Milestone 5B)
+
+Start FastAPI and Vite using the local development commands above. Open `http://localhost:5173/?algorithm=k-means` and choose **Run experiment**. The defaults draw 150 points around three source centers using spread 1.5 and generation seed 42. K-Means fits three centroids with initialization seed 7 and up to 30 updates.
+
+Enter one `x,y` pair per line for source centers or inline observations. Source centers describe where synthetic points can be drawn. The fitted centroids are learned from the resulting observations. Keep the generation recipe fixed and change only the initialization seed to investigate how starting positions affect the grouping.
+
+Results open at the last completed iteration. Use the slider, Previous, Next, Initialization or Final result to inspect the run. Small markers show observations and crosses show centroids. The membership table lists every cluster, including empty ones and centroids that coincide. Expand **Inspect individual assignments** to read the cluster ID for any observation. The second plot highlights the selected iteration on the returned inertia curve. Inertia measures within-cluster squared distance and typically favors larger values of `k`.
+
+### Manual browser checks
+
+1. Run the default synthetic experiment twice with different initialization seeds. In the network responses, compare the effective points and initial centroids.
+2. Step from the final result back to initialization. Compare both plots and both membership views with the same numbered snapshot. Moving the slider should send zero experiment requests.
+3. Switch to inline points. Enter `0,0` three times, followed by `1,0`, `3,0`, `9,0` and `10,0`, each on its own line. Set `k=4`, initialization seed 2 and one maximum iteration. Inspect the empty centers and the iteration-limit explanation. Increase the limit to 10 to see stable assignments.
+4. Switch through all three labs, use browser Back and Forward, and return at mobile width. Check preserved inputs, the selected step, chart widths and keyboard navigation.
+5. Submit an incomplete coordinate pair after a successful run, then reset. Disconnect the backend, run again, restore connectivity and retry. Check the console and the experiment request count.

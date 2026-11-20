@@ -1,5 +1,12 @@
 # Development Log
 
+## Milestone 5B — interactive K-Means lab
+
+- Added the third algorithm link, inline and synthetic forms, runtime response checks and a manual snapshot explorer. Every displayed centroid, assignment and inertia comes from the accepted backend run. Both charts follow the same selected iteration. A text table exposes empty clusters, overlapping centroids and individual assignments.
+- Node 24.22.3: all 107 frontend tests across 14 files passed, and the TypeScript/Vite production build passed. Backend pytest passed all 117 tests with the existing Starlette TestClient deprecation. The lazy Plotly asset measured 1,160.44 kB minified (384.74 kB gzip), triggering Vite's size warning.
+- Headless Chrome used local FastAPI and Vite at desktop 1280 × 900 and emulated mobile 390 × 844. Checked the direct link, all three algorithm links, history traversal, retained form and step, default synthetic run, initialization-seed independence, inline runs, varying k, empty/coincident centers, capped results, invalid input, reset and offline/retry. Compared plotted assignments, centroids and selected inertia against HTTP responses. Both revealed mobile plots matched their 340 px containers. Checked for horizontal overflow and JavaScript exceptions/console errors.
+- For the documented seed-3 maximum-workload fixture (1,000 points, 16 clusters, 101 snapshots), five desktop slider changes to steps 0, 25, 50, 75 and 100 took 264.4, 259.1, 274.0, 225.4 and 226.6 ms respectively through chart update plus two animation frames. No additional POSTs occurred. These local development measurements are exploratory. Physical mobile devices, other browser engines and production latency remain unmeasured.
+
 ## Milestone 5A contract corrections
 
 - Standardized the route on `POST /api/v1/experiments/k-means`. OpenAPI now advertises request and response dataset variants keyed by `kind`.

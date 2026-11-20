@@ -184,6 +184,12 @@ The response echoes the dataset, parameters and seed. It includes `model.centroi
 
 Sampling distinct rows can select repeated coordinates even when the data contains at least `k` distinct locations. Cluster counts at any iteration are the frequencies of IDs 0 through `k-1` in that snapshot. Stable assignments can include zero counts. On the last permitted update, stable assignments give `converged: true`; changed assignments give `converged: false`.
 
+### K-Means learner lab (Milestone 5B)
+
+The lab accepts inline observations and seeded source-cluster recipes through the K-Means contract. Learners can keep their observations fixed, vary centroid initialization, and inspect the resulting groupings. Each successful run opens at the final snapshot. Manual navigation selects initialization or any completed update and updates the assignments, centroid coordinates, cluster counts, inertia and chart highlight together. Empty groups remain visible in the cluster table. The run outcome distinguishes stable assignments from an iteration cap reached during reassignment.
+
+The three labs preserve their forms and completed runs across algorithm navigation. Invalid submissions clear previous results. A full page reload restores defaults. Keyboard users can step through iterations and inspect point assignments in a table.
+
 ## 8. Non-functional requirements and measurable targets
 
 Initial targets for Linear Regression V1:

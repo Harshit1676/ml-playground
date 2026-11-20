@@ -83,6 +83,8 @@ describe('ML Playground application shell', () => {
     expect(container.querySelector('#dataset-kind')).not.toBeVisible()
     link.focus()
     await user.tab()
+    expect(screen.getByRole('link', { name: 'K-Means' })).toHaveFocus()
+    await user.tab()
     expect(activeSelect).toHaveFocus()
   })
 

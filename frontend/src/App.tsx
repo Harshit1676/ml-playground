@@ -3,14 +3,14 @@ import type { MouseEvent } from 'react'
 import { LinearRegressionExperience } from './features/linear-regression/LinearRegressionExperience'
 import { LogisticRegressionExperience } from './features/logistic-regression/LogisticRegressionExperience'
 import { getHealth } from './lib/api/health'
+import { KMeansExperience } from './features/k-means/KMeansExperience'
 
 type ConnectionState = 'loading' | 'connected' | 'failed'
-type Algorithm = 'linear-regression' | 'logistic-regression'
+type Algorithm = 'linear-regression' | 'logistic-regression' | 'k-means'
 
 function algorithmFromLocation(): Algorithm {
-  return new URLSearchParams(window.location.search).get('algorithm') === 'logistic-regression'
-    ? 'logistic-regression'
-    : 'linear-regression'
+  const value = new URLSearchParams(window.location.search).get('algorithm')
+  return value === 'logistic-regression' || value === 'k-means' ? value : 'linear-regression'
 }
 
 function algorithmHref(algorithm: Algorithm): string {
@@ -94,6 +94,8 @@ function App() {
         >
           Logistic Regression
         </a>
+        <a href={algorithmHref('k-means')} onClick={event => navigateTo(event, 'k-means')}
+          aria-current={algorithm === 'k-means' ? 'page' : undefined}>K-Means</a>
       </nav>
 
       <div hidden={algorithm !== 'linear-regression'}>
@@ -101,6 +103,9 @@ function App() {
       </div>
       <div hidden={algorithm !== 'logistic-regression'}>
         <LogisticRegressionExperience />
+      </div>
+      <div hidden={algorithm !== 'k-means'}>
+        <KMeansExperience visible={algorithm === 'k-means'} />
       </div>
 
       <footer className="footer">
