@@ -3,9 +3,11 @@ import math
 
 import numpy as np
 import pytest
+from pydantic import ValidationError
 from fastapi.testclient import TestClient
 
 from app.api.routes import logistic_regression as logistic_route
+from app.schemas.logistic_regression import LogisticRegressionRequest
 from app.main import create_app
 from app.ml.logistic_regression import (
     LogisticNumericalDivergenceError,
@@ -386,3 +388,45 @@ def test_threshold_and_seed_are_echoed_for_inline_data() -> None:
     assert response.status_code == 200
     assert response.json()["threshold"] == 0.75
     assert response.json()["seed"] == 42
+
+
+@pytest.mark.parametrize("label", [True, False, "0", "1", math.nan, math.inf, -math.inf])
+def test_invalid_binary_label_has_structured_error(label):
+    body = points_request(x=[0], y=[label])
+    response = client.post("/api/v1/experiments/logistic-regression",
+                           content=json.dumps(body), headers={"content-type": "application/json"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_binary_label_validates_integer_membership_without_narrowing():
+    import sys
+
+    outside_float_range = int(sys.float_info.max) * 2
+    with pytest.raises(ValidationError, match="labels must be exactly 0 or 1"):
+        LogisticRegressionRequest.model_validate(points_request(x=[0], y=[outside_float_range]))
+
+
+def test_oversized_integer_label_returns_field_validation_error() -> None:
+    body = json.dumps(points_request(x=[0], y=[10**399]), allow_nan=False).encode("ascii")
+    assert len(body) < 1024
+    response = client.post(
+        "/api/v1/experiments/logistic-regression",
+        content=body,
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert error["message"] == "Request validation failed."
+    assert any(
+        field["field"].endswith("y.0") and "exactly 0 or 1" in field["reason"]
+        for field in error["details"]["fields"]
+    )
+
+
+@pytest.mark.parametrize("label", [0, 1, 0.0, 1.0])
+def test_binary_numeric_labels_are_accepted(label):
+    response = client.post("/api/v1/experiments/logistic-regression", json=points_request(x=[0], y=[label]))
+    assert response.status_code == 200
+    assert response.json()["dataset"]["y"] == [int(label)]

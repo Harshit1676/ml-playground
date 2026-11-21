@@ -1,6 +1,5 @@
 """Typed request and response contracts for binary Logistic Regression."""
 
-import math
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
@@ -16,7 +15,7 @@ MetricValue = Annotated[float, Field(allow_inf_nan=False, ge=0, le=1)]
 def _parse_binary_label(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("labels must be numeric 0 or 1")
-    if not math.isfinite(float(value)) or value not in (0, 1):
+    if value not in (0, 1):
         raise ValueError("labels must be exactly 0 or 1")
     return int(value)
 

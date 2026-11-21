@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from './baseUrl'
 import type { KMeansRequest, KMeansResponse, Point, Snapshot } from '../../features/k-means/types'
 
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -52,7 +53,7 @@ export class ExperimentError extends Error {
 }
 
 export async function runKMeans(request: KMeansRequest, signal: AbortSignal): Promise<KMeansResponse> {
-  const base = (import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:8000').replace(/\/+$/, '')
+  const base = getApiBaseUrl()
   let response: Response
   let body: unknown
   try {

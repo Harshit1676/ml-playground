@@ -75,6 +75,7 @@ Open the Vite URL printed in the terminal (normally `http://localhost:5173`). Th
 
 ```powershell
 npm test
+$env:VITE_API_BASE_URL = 'https://api.example.invalid' # CI/local build verification only
 npm run build
 ```
 
@@ -84,13 +85,13 @@ npm run build
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It uses the Node version in `.nvmrc`, runs `npm ci`, `npm test`, and `npm run build` from `frontend/`, then installs `backend/requirements.txt` with Python 3.11 and runs pytest. These checks need no repository secrets. This is CI only; no deployment workflow is configured.
+`.github/workflows/ci.yml` runs on pull requests and pushes to `main`. It uses the Node version in `.nvmrc`, runs `npm ci`, `npm test`, and `npm run build` from `frontend/`, then installs `backend/requirements.txt` with Python 3.11 and runs pytest. The build step uses the reserved non-secret HTTPS test value `https://api.example.invalid`. Its output is for verification only. These checks need no repository secrets. This is CI only; no deployment workflow is configured.
 
 ## Production deployment configuration
 
 No hosting provider has been selected and nothing has been deployed.
 
-- **Static frontend:** run `npm run build` from `frontend/`; upload the generated `frontend/dist/` directory to a static host. Set `VITE_API_BASE_URL` to the public FastAPI base URL in the frontend host's build-time environment. It is embedded in public assets and must not contain secrets.
+- **Static frontend:** run `npm run build` from `frontend/`; upload the generated `frontend/dist/` directory to a static host. Release builds require an explicit absolute HTTPS API URL and reject loopback addresses, credentials, queries and fragments. Set `VITE_API_BASE_URL` to the public FastAPI base URL in the frontend host's build-time environment. It is embedded in public assets and must not contain secrets.
 - **FastAPI service:** install `backend/requirements.txt`, set `APP_ENV=production`, and set `CORS_ALLOWED_ORIGINS` to a comma-separated list of exact frontend origins, for example `https://playground.example.com`. Set these as backend service environment variables; do not use wildcard origins. Start with `python -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT"`, where the platform supplies `PORT`.
 - **CORS methods and preflight:** the API already allows `GET`, `POST`, and `OPTIONS` for the health and Linear Regression routes. Production preflight must use an explicitly allowed HTTPS origin; `content-type` is permitted. When adding other HTTP methods or headers, enable and test only those required.
 
@@ -108,7 +109,7 @@ These instructions describe the deployment contract, not a provider-specific rel
 ## Important files and dependencies
 
 - `frontend/src/App.tsx` provides query-string navigation between the Linear Regression, Logistic Regression and K-Means labs and reports backend loading/connected/failed states.
-- `frontend/src/lib/api/health.ts` provides the typed health client, validates the response shape, and uses `VITE_API_BASE_URL` (defaulting to `http://localhost:8000`).
+- `frontend/src/lib/api/health.ts` provides the typed health client, validates the response shape, and uses `VITE_API_BASE_URL` (development default `http://localhost:8000`).
 - `frontend/src/styles.css` imports Tailwind CSS and contains responsive experiment controls, results, and chart styling.
 - `frontend/vite.config.ts` configures the React and Tailwind Vite plugins and Vitest's jsdom environment.
 - `frontend/src/features/linear-regression/LinearRegressionExperience.tsx` and `frontend/src/features/logistic-regression/LogisticRegressionExperience.tsx` own each lab's form and page state; each feature's `request.ts` validates controls and constructs its existing API payload.
