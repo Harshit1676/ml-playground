@@ -1,5 +1,12 @@
 # Development Log
 
+## Milestone 6B phase 2 — Single-process experiment admission
+
+- Source review narrowed the shared nonblocking slot to validation, computation and successful JSON serialization. It starts after bounded body buffering and ends before network transmission. The original tests showed that incomplete uploads and suspended sends could occupy the slot without a fit running. The corrected tests require a different experiment to succeed during both waits. Busy responses carry HTTP 503, a stable error code and a one-second retry hint. Health and preflight bypass the gate. The labs explain contention and offer manual retry.
+- Event-controlled tests covered cancellation during upload and training, a real socket disconnect during a fit, mixed-route contention, stalled and failed response transmission, error recovery and CORS. Frontend tests exercised the busy message and explicit retry in each lab.
+- After the boundary correction, Python 3.11.9 passed 137 tests, including a check that pauses serialization. The real socket-disconnect test also passed three standalone repeats. Node 24.22.3 passed 140 tests and the configured TypeScript/Vite production build. The earlier phase verification also rejected ten invalid release configurations.
+- The [local benchmark report](ADMISSION_CONTROL_BENCHMARK.md) records serial and concurrent workloads, health probes, CPU and worker memory. Platform deadlines, shared quotas and instance scaling still need separate review.
+
 ## Milestone 6B phase 1 ? release guards and binary label validation
 
 - All four API clients share development URL resolution. Vite validates the effective release URL before bundling. CI builds against the reserved HTTPS test destination and has no artifact publication step.

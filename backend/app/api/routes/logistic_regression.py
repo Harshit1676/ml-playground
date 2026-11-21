@@ -1,10 +1,9 @@
-from fastapi import APIRouter
-
+from app.api.admission import experiment_router
 from app.schemas.errors import ErrorResponse
 from app.schemas.logistic_regression import LogisticRegressionRequest, LogisticRegressionResponse
 from app.services.logistic_regression import run_logistic_regression_experiment
 
-router = APIRouter()
+router = experiment_router()
 
 
 @router.post(
