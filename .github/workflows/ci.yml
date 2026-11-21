@@ -29,7 +29,9 @@ jobs:
         run: npm ci
       - name: Run frontend tests
         run: npm test
-      - name: Build frontend
+      - name: Build frontend for verification only
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid
         run: npm run build
 
   backend:

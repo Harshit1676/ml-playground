@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from './baseUrl'
 import { deriveThresholdMetrics, logisticProbability } from '../../features/logistic-regression/classification'
 import type { BinaryLabel, LogisticRegressionRequest, LogisticRegressionResponse } from '../../features/logistic-regression/types'
 
@@ -28,7 +29,6 @@ export class LogisticRegressionNetworkError extends Error {
   }
 }
 
-const defaultApiBaseUrl = 'http://localhost:8000'
 const RESPONSE_TOLERANCE = 1e-9
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -157,8 +157,7 @@ export async function runLogisticRegression(
   request: LogisticRegressionRequest,
   signal?: AbortSignal,
 ): Promise<LogisticRegressionResponse> {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
-  const baseUrl = (configuredBaseUrl || defaultApiBaseUrl).replace(/\/+$/, '')
+  const baseUrl = getApiBaseUrl()
   let response: Response
 
   try {

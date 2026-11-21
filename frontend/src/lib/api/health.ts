@@ -1,12 +1,10 @@
+import { getApiBaseUrl } from './baseUrl'
 export interface HealthResponse {
   status: 'ok'
 }
 
-const defaultApiBaseUrl = 'http://localhost:8000'
-
 export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
-  const baseUrl = (configuredBaseUrl || defaultApiBaseUrl).replace(/\/+$/, '')
+  const baseUrl = getApiBaseUrl()
   const response = await fetch(`${baseUrl}/api/v1/health`, {
     headers: { Accept: 'application/json' },
     signal,

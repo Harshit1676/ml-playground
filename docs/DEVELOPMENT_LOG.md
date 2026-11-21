@@ -1,5 +1,13 @@
 # Development Log
 
+## Milestone 6B phase 1 ? release guards and binary label validation
+
+- All four API clients share development URL resolution. Vite validates the effective release URL before bundling. CI builds against the reserved HTTPS test destination and has no artifact publication step.
+- Source inspection identified a float conversion before binary label membership validation. A sufficiently large integer could raise OverflowError there. No pre-fix HTTP 500 was observed.
+- At the schema boundary the corrected validator rejects integers outside float range with a Pydantic validation error. Through the FastAPI HTTP test client, valid JSON under 1 KiB containing a 400-digit numeric label returned 422 with the standard VALIDATION_ERROR envelope and a field-specific reason. The client propagates unhandled application exceptions, and none escaped. Numeric zero and one were accepted. Boolean, string and nonfinite labels were rejected.
+- Node 24.22.3 passed 135 frontend tests. TypeScript and the configured Vite release build passed. Eight actual Vite invocations rejected invalid or missing destinations. The resulting successful bundle contained the verification URL and excluded the localhost fallback. Python 3.11.9 passed 130 backend tests.
+- The [admission-control proposal](ADMISSION_CONTROL_PROPOSAL.md) records candidate process, gateway and hosting limits and staging acceptance tests for approval.
+
 ## 2026-11-20 — Learning lab readability and accessibility
 
 - Moved primary plots ahead of model summaries and put Run above the controls. Mobile settings collapse on submission and reopen for field errors. Matched draft and submitted request payloads to flag stale results, including edits made while a request is pending.

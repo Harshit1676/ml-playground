@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from './baseUrl'
 import type { LinearRegressionRequest, LinearRegressionResponse } from '../../features/linear-regression/types'
 
 export interface StructuredApiError {
@@ -26,8 +27,6 @@ export class LinearRegressionNetworkError extends Error {
     super('Could not reach the experiment service. Check that the backend is running, then retry.')
   }
 }
-
-const defaultApiBaseUrl = 'http://localhost:8000'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -114,8 +113,7 @@ export async function runLinearRegression(
   request: LinearRegressionRequest,
   signal?: AbortSignal,
 ): Promise<LinearRegressionResponse> {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
-  const baseUrl = (configuredBaseUrl || defaultApiBaseUrl).replace(/\/+$/, '')
+  const baseUrl = getApiBaseUrl()
   let response: Response
 
   try {
