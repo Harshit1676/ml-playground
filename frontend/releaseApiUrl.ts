@@ -16,6 +16,7 @@ export function releaseApiUrl(value: string | undefined): string {
   const localV6 = /^\[::(?:1|(?:ffff:)?7f[\da-f]{2}:[\da-f]+)?\]$/i.test(host)
   const validDns = host.startsWith('[') || host.split('.').every(label =>
     /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))
-  if (!validDns || localName || localV4 || localV6 || host === '0.0.0.0' || url.username || url.password) throw invalid()
+  const unspecifiedV4 = host === '0.0.0.0' || host === '[::ffff:0:0]'
+  if (!validDns || localName || localV4 || localV6 || unspecifiedV4 || url.username || url.password) throw invalid()
   return url.href.replace(/\/+$/, '')
 }
