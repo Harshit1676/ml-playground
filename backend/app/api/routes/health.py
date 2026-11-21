@@ -11,5 +11,5 @@ class HealthResponse(BaseModel):
 
 
 @router.get("/health", response_model=HealthResponse, tags=["health"])
-def get_health() -> HealthResponse:
+async def get_health() -> HealthResponse:
     return HealthResponse(status="ok")

@@ -10,6 +10,24 @@ afterEach(() => {
 })
 
 describe('ML Playground application shell', () => {
+  it.each(['linear-regression', 'logistic-regression', 'k-means'])('offers manual retry for a busy %s experiment', async algorithm => {
+    window.history.replaceState({}, '', '/?algorithm=' + algorithm)
+    const message = 'The server is busy running another experiment. Wait a second and retry.'
+    const post = vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: { code: 'EXPERIMENT_BUSY', message, details: {} },
+    }), { status: 503, headers: { 'Retry-After': '1' } })))
+    vi.stubGlobal('fetch', (_url: string, init: RequestInit) => init.method === 'POST'
+      ? post() : Promise.resolve(new Response(JSON.stringify({ status: 'ok' }))))
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /run experiment/i }))
+    expect(await screen.findByText(message)).toBeVisible()
+    expect(post).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: /retry request/i }))
+    expect(await screen.findByText(message)).toBeVisible()
+    expect(post).toHaveBeenCalledTimes(2)
+  })
+
   it('shows backend loading while rendering the Linear Regression lab', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<App />)

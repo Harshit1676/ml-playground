@@ -1,10 +1,9 @@
-from fastapi import APIRouter
-
+from app.api.admission import experiment_router
 from app.schemas.errors import ErrorResponse
 from app.schemas.linear_regression import LinearRegressionRequest, LinearRegressionResponse
 from app.services.linear_regression import run_linear_regression_experiment
 
-router = APIRouter()
+router = experiment_router()
 
 
 @router.post(

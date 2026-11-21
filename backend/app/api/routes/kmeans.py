@@ -1,10 +1,9 @@
-from fastapi import APIRouter
-
+from app.api.admission import experiment_router
 from app.schemas.errors import ErrorResponse
 from app.schemas.kmeans import KMeansRequest, KMeansResponse
 from app.services.kmeans import run_kmeans_experiment
 
-router = APIRouter()
+router = experiment_router()
 
 
 @router.post(

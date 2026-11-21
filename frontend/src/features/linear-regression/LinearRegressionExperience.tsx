@@ -108,7 +108,8 @@ function explainError(error: unknown): ErrorView {
       }
     }
     return {
-      title: error.status >= 500 ? 'The experiment service is unavailable' : 'The experiment could not be run',
+      title: error.code === 'EXPERIMENT_BUSY' ? 'Another experiment is running'
+        : error.status >= 500 ? 'The experiment service is unavailable' : 'The experiment could not be run',
       message,
       code: error.code,
       canRetry: error.status >= 500,

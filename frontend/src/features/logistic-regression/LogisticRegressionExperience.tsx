@@ -102,7 +102,8 @@ function explainError(error: unknown): ErrorView {
       : error.message
     const singleClass = error.code === 'SINGLE_CLASS_DATASET'
     return {
-      title: singleClass ? 'The generated sample contains one class' : error.status >= 500 ? 'The experiment service is unavailable' : 'The experiment could not be run',
+      title: error.code === 'EXPERIMENT_BUSY' ? 'Another experiment is running'
+        : singleClass ? 'The generated sample contains one class' : error.status >= 500 ? 'The experiment service is unavailable' : 'The experiment could not be run',
       message,
       code: error.code,
       canRetry: error.status >= 500,

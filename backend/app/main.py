@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
+        expose_headers=["Retry-After"],
     )
     application.include_router(api_router)
 
